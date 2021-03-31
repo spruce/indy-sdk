@@ -2,11 +2,12 @@ extern crate futures;
 
 use self::futures::Future;
 use super::indy;
+use crate::utils::rand::random_string;
 use indy::IndyError;
-use utils::rand::random_string;
 use indy::{WalletHandle, INVALID_WALLET_HANDLE};
 
-static USEFUL_CREDENTIALS : &'static str =  r#"{"key":"8dvfYSt5d1taSd6yJdpjq4emkwsPDDLYxkNFysFD2cZY", "key_derivation_method":"RAW"}"#;
+static USEFUL_CREDENTIALS: &'static str =
+    r#"{"key":"8dvfYSt5d1taSd6yJdpjq4emkwsPDDLYxkNFysFD2cZY", "key_derivation_method":"RAW"}"#;
 
 /**
 A test wallet that deletees itself when it leaves scope.
@@ -35,8 +36,11 @@ pub struct Wallet {
 impl Wallet {
     /* constructors */
     pub fn new() -> Wallet {
-        let wallet_name : String = random_string(20);
-        let mut wallet = Wallet { name : wallet_name , handle: INVALID_WALLET_HANDLE };
+        let wallet_name: String = random_string(20);
+        let mut wallet = Wallet {
+            name: wallet_name,
+            handle: INVALID_WALLET_HANDLE,
+        };
         wallet.create().unwrap();
         wallet.open().unwrap();
 
@@ -44,7 +48,10 @@ impl Wallet {
     }
 
     pub fn from_name(name: &str) -> Wallet {
-        let mut wallet = Wallet { name: name.to_string(), handle: INVALID_WALLET_HANDLE };
+        let mut wallet = Wallet {
+            name: name.to_string(),
+            handle: INVALID_WALLET_HANDLE,
+        };
         wallet.create().unwrap();
         wallet.open().unwrap();
 
@@ -60,7 +67,7 @@ impl Wallet {
     /* private instance methods for open/create/etc...*/
 
     fn open(&mut self) -> Result<WalletHandle, IndyError> {
-        let config : String = Wallet::create_wallet_config(&self.name);
+        let config: String = Wallet::create_wallet_config(&self.name);
         let handle = indy::wallet::open_wallet(&config, USEFUL_CREDENTIALS).wait()?;
         self.handle = handle;
         return Ok(handle);
@@ -68,7 +75,7 @@ impl Wallet {
 
     fn create(&self) -> Result<(), IndyError> {
         let config = Wallet::create_wallet_config(&self.name);
-        return indy::wallet::create_wallet(&config, USEFUL_CREDENTIALS).wait()
+        return indy::wallet::create_wallet(&config, USEFUL_CREDENTIALS).wait();
     }
 
     fn close(&self) -> Result<(), IndyError> {
@@ -76,8 +83,8 @@ impl Wallet {
     }
 
     fn delete(&self) -> Result<(), IndyError> {
-        let config : String = Wallet::create_wallet_config(&self.name);
-        return indy::wallet::delete_wallet(&config, USEFUL_CREDENTIALS).wait()
+        let config: String = Wallet::create_wallet_config(&self.name);
+        return indy::wallet::delete_wallet(&config, USEFUL_CREDENTIALS).wait();
     }
 }
 

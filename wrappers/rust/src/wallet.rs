@@ -1,18 +1,16 @@
 use futures::Future;
 
-use {ErrorCode, IndyError};
+use crate::{ErrorCode, IndyError};
 
 use std::ffi::CString;
+use std::pin::Pin;
 use std::ptr::null;
 
-use utils::callbacks::{ClosureHandler, ResultHandler};
+use crate::utils::callbacks::{ClosureHandler, ResultHandler};
 
-use ffi::{wallet, non_secrets};
-use ffi::{ResponseEmptyCB,
-          ResponseStringCB,
-          ResponseI32CB,
-          ResponseWalletHandleCB};
-use {CommandHandle, WalletHandle, SearchHandle};
+use crate::{CommandHandle, SearchHandle, WalletHandle};
+use ffi::{non_secrets, wallet};
+use ffi::{ResponseEmptyCB, ResponseI32CB, ResponseStringCB, ResponseWalletHandleCB};
 
 /// Registers custom wallet implementation.
 ///
@@ -30,121 +28,129 @@ use {CommandHandle, WalletHandle, SearchHandle};
 /// * `close` - Wallet close operation handler
 /// * `delete` - WalletType delete operation handler
 /// * `free` - Handler that allows to de-allocate strings allocated in caller code
-pub fn register_wallet_storage(xtype: &str,
-                               create: Option<wallet::WalletCreate>,
-                               open: Option<wallet::WalletOpen>,
-                               close: Option<wallet::WalletClose>,
-                               delete: Option<wallet::WalletDelete>,
-                               add_record: Option<wallet::WalletAddRecord>,
-                               update_record_value: Option<wallet::WalletUpdateRecordValue>,
-                               update_record_tags: Option<wallet::WalletUpdateRecordTags>,
-                               add_record_tags: Option<wallet::WalletAddRecordTags>,
-                               delete_record_tags: Option<wallet::WalletDeleteRecordTags>,
-                               delete_record: Option<wallet::WalletDeleteRecord>,
-                               get_record: Option<wallet::WalletGetRecord>,
-                               get_record_id: Option<wallet::WalletGetRecordId>,
-                               get_record_type: Option<wallet::WalletGetRecordType>,
-                               get_record_value: Option<wallet::WalletGetRecordValue>,
-                               get_record_tags: Option<wallet::WalletGetRecordTags>,
-                               free_record: Option<wallet::WalletFreeRecord>,
-                               get_storage_metadata: Option<wallet::WalletGetStorageMetadata>,
-                               set_storage_metadata: Option<wallet::WalletSetStorageMetadata>,
-                               free_storage_metadata: Option<wallet::WalletFreeStorageMetadata>,
-                               search_records: Option<wallet::WalletSearchRecords>,
-                               search_all_records: Option<wallet::WalletSearchAllRecords>,
-                               get_search_total_count: Option<wallet::WalletGetSearchTotalCount>,
-                               fetch_search_next_record: Option<wallet::WalletFetchSearchNextRecord>,
-                               free_search: Option<wallet::WalletFreeSearch>) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn register_wallet_storage(
+    xtype: &str,
+    create: Option<wallet::WalletCreate>,
+    open: Option<wallet::WalletOpen>,
+    close: Option<wallet::WalletClose>,
+    delete: Option<wallet::WalletDelete>,
+    add_record: Option<wallet::WalletAddRecord>,
+    update_record_value: Option<wallet::WalletUpdateRecordValue>,
+    update_record_tags: Option<wallet::WalletUpdateRecordTags>,
+    add_record_tags: Option<wallet::WalletAddRecordTags>,
+    delete_record_tags: Option<wallet::WalletDeleteRecordTags>,
+    delete_record: Option<wallet::WalletDeleteRecord>,
+    get_record: Option<wallet::WalletGetRecord>,
+    get_record_id: Option<wallet::WalletGetRecordId>,
+    get_record_type: Option<wallet::WalletGetRecordType>,
+    get_record_value: Option<wallet::WalletGetRecordValue>,
+    get_record_tags: Option<wallet::WalletGetRecordTags>,
+    free_record: Option<wallet::WalletFreeRecord>,
+    get_storage_metadata: Option<wallet::WalletGetStorageMetadata>,
+    set_storage_metadata: Option<wallet::WalletSetStorageMetadata>,
+    free_storage_metadata: Option<wallet::WalletFreeStorageMetadata>,
+    search_records: Option<wallet::WalletSearchRecords>,
+    search_all_records: Option<wallet::WalletSearchAllRecords>,
+    get_search_total_count: Option<wallet::WalletGetSearchTotalCount>,
+    fetch_search_next_record: Option<wallet::WalletFetchSearchNextRecord>,
+    free_search: Option<wallet::WalletFreeSearch>,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
-    let err = _register_storage(command_handle,
-                                        xtype,
-                                        create,
-                                        open,
-                                        close,
-                                        delete,
-                                        add_record,
-                                        update_record_value,
-                                        update_record_tags,
-                                        add_record_tags,
-                                        delete_record_tags,
-                                        delete_record,
-                                        get_record,
-                                        get_record_id,
-                                        get_record_type,
-                                        get_record_value,
-                                        get_record_tags,
-                                        free_record,
-                                        get_storage_metadata,
-                                        set_storage_metadata,
-                                        free_storage_metadata,
-                                        search_records,
-                                        search_all_records,
-                                        get_search_total_count,
-                                        fetch_search_next_record,
-                                        free_search,
-                                        cb);
+    let err = _register_storage(
+        command_handle,
+        xtype,
+        create,
+        open,
+        close,
+        delete,
+        add_record,
+        update_record_value,
+        update_record_tags,
+        add_record_tags,
+        delete_record_tags,
+        delete_record,
+        get_record,
+        get_record_id,
+        get_record_type,
+        get_record_value,
+        get_record_tags,
+        free_record,
+        get_storage_metadata,
+        set_storage_metadata,
+        free_storage_metadata,
+        search_records,
+        search_all_records,
+        get_search_total_count,
+        fetch_search_next_record,
+        free_search,
+        cb,
+    );
 
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _register_storage(command_handle: CommandHandle,
-                     xtype: &str,
-                     create: Option<wallet::WalletCreate>,
-                     open: Option<wallet::WalletOpen>,
-                     close: Option<wallet::WalletClose>,
-                     delete: Option<wallet::WalletDelete>,
-                     add_record: Option<wallet::WalletAddRecord>,
-                     update_record_value: Option<wallet::WalletUpdateRecordValue>,
-                     update_record_tags: Option<wallet::WalletUpdateRecordTags>,
-                     add_record_tags: Option<wallet::WalletAddRecordTags>,
-                     delete_record_tags: Option<wallet::WalletDeleteRecordTags>,
-                     delete_record: Option<wallet::WalletDeleteRecord>,
-                     get_record: Option<wallet::WalletGetRecord>,
-                     get_record_id: Option<wallet::WalletGetRecordId>,
-                     get_record_type: Option<wallet::WalletGetRecordType>,
-                     get_record_value: Option<wallet::WalletGetRecordValue>,
-                     get_record_tags: Option<wallet::WalletGetRecordTags>,
-                     free_record: Option<wallet::WalletFreeRecord>,
-                     get_storage_metadata: Option<wallet::WalletGetStorageMetadata>,
-                     set_storage_metadata: Option<wallet::WalletSetStorageMetadata>,
-                     free_storage_metadata: Option<wallet::WalletFreeStorageMetadata>,
-                     search_records: Option<wallet::WalletSearchRecords>,
-                     search_all_records: Option<wallet::WalletSearchAllRecords>,
-                     get_search_total_count: Option<wallet::WalletGetSearchTotalCount>,
-                     fetch_search_next_record: Option<wallet::WalletFetchSearchNextRecord>,
-                     free_search: Option<wallet::WalletFreeSearch>,
-                     cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _register_storage(
+    command_handle: CommandHandle,
+    xtype: &str,
+    create: Option<wallet::WalletCreate>,
+    open: Option<wallet::WalletOpen>,
+    close: Option<wallet::WalletClose>,
+    delete: Option<wallet::WalletDelete>,
+    add_record: Option<wallet::WalletAddRecord>,
+    update_record_value: Option<wallet::WalletUpdateRecordValue>,
+    update_record_tags: Option<wallet::WalletUpdateRecordTags>,
+    add_record_tags: Option<wallet::WalletAddRecordTags>,
+    delete_record_tags: Option<wallet::WalletDeleteRecordTags>,
+    delete_record: Option<wallet::WalletDeleteRecord>,
+    get_record: Option<wallet::WalletGetRecord>,
+    get_record_id: Option<wallet::WalletGetRecordId>,
+    get_record_type: Option<wallet::WalletGetRecordType>,
+    get_record_value: Option<wallet::WalletGetRecordValue>,
+    get_record_tags: Option<wallet::WalletGetRecordTags>,
+    free_record: Option<wallet::WalletFreeRecord>,
+    get_storage_metadata: Option<wallet::WalletGetStorageMetadata>,
+    set_storage_metadata: Option<wallet::WalletSetStorageMetadata>,
+    free_storage_metadata: Option<wallet::WalletFreeStorageMetadata>,
+    search_records: Option<wallet::WalletSearchRecords>,
+    search_all_records: Option<wallet::WalletSearchAllRecords>,
+    get_search_total_count: Option<wallet::WalletGetSearchTotalCount>,
+    fetch_search_next_record: Option<wallet::WalletFetchSearchNextRecord>,
+    free_search: Option<wallet::WalletFreeSearch>,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     let xtype = c_str!(xtype);
 
     ErrorCode::from(unsafe {
-      wallet::indy_register_wallet_storage(command_handle,
-                                           xtype.as_ptr(),
-                                           create,
-                                           open,
-                                           close,
-                                           delete,
-                                           add_record,
-                                           update_record_value,
-                                           update_record_tags,
-                                           add_record_tags,
-                                           delete_record_tags,
-                                           delete_record,
-                                           get_record,
-                                           get_record_id,
-                                           get_record_type,
-                                           get_record_value,
-                                           get_record_tags,
-                                           free_record,
-                                           get_storage_metadata,
-                                           set_storage_metadata,
-                                           free_storage_metadata,
-                                           search_records,
-                                           search_all_records,
-                                           get_search_total_count,
-                                           fetch_search_next_record,
-                                           free_search,
-                                           cb)
+        wallet::indy_register_wallet_storage(
+            command_handle,
+            xtype.as_ptr(),
+            create,
+            open,
+            close,
+            delete,
+            add_record,
+            update_record_value,
+            update_record_tags,
+            add_record_tags,
+            delete_record_tags,
+            delete_record,
+            get_record,
+            get_record_id,
+            get_record_type,
+            get_record_value,
+            get_record_tags,
+            free_record,
+            get_storage_metadata,
+            set_storage_metadata,
+            free_storage_metadata,
+            search_records,
+            search_all_records,
+            get_search_total_count,
+            fetch_search_next_record,
+            free_search,
+            cb,
+        )
     })
 }
 
@@ -155,7 +161,10 @@ fn _register_storage(command_handle: CommandHandle,
 ///                    if NULL, then default config will be used.
 /// * `credentials` - Wallet credentials json. List of supported keys are defined by wallet type.
 ///                    if NULL, then default config will be used.
-pub fn create_wallet(config: &str, credentials: &str) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn create_wallet(
+    config: &str,
+    credentials: &str,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _create_wallet(command_handle, config, credentials, cb);
@@ -163,12 +172,17 @@ pub fn create_wallet(config: &str, credentials: &str) -> Box<dyn Future<Item=(),
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _create_wallet(command_handle: CommandHandle, config: &str, credentials: &str, cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _create_wallet(
+    command_handle: CommandHandle,
+    config: &str,
+    credentials: &str,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     let config = c_str!(config);
     let credentials = c_str!(credentials);
 
     ErrorCode::from(unsafe {
-      wallet::indy_create_wallet(command_handle, config.as_ptr(), credentials.as_ptr(), cb)
+        wallet::indy_create_wallet(command_handle, config.as_ptr(), credentials.as_ptr(), cb)
     })
 }
 
@@ -188,7 +202,10 @@ fn _create_wallet(command_handle: CommandHandle, config: &str, credentials: &str
 ///
 /// # Returns
 /// Handle to opened wallet to use in methods that require wallet access.
-pub fn open_wallet(config: &str, credentials: &str) -> Box<dyn Future<Item=WalletHandle, Error=IndyError>> {
+pub fn open_wallet(
+    config: &str,
+    credentials: &str,
+) -> Pin<Box<dyn Future<Item = WalletHandle, Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_wallethandle();
 
     let err = _open_wallet(command_handle, config, credentials, cb);
@@ -196,12 +213,17 @@ pub fn open_wallet(config: &str, credentials: &str) -> Box<dyn Future<Item=Walle
     ResultHandler::wallethandle(command_handle, err, receiver)
 }
 
-fn _open_wallet(command_handle: CommandHandle, config: &str, credentials: &str, cb: Option<ResponseWalletHandleCB>) -> ErrorCode {
+fn _open_wallet(
+    command_handle: CommandHandle,
+    config: &str,
+    credentials: &str,
+    cb: Option<ResponseWalletHandleCB>,
+) -> ErrorCode {
     let config = c_str!(config);
     let credentials = c_str!(credentials);
 
     ErrorCode::from(unsafe {
-      wallet::indy_open_wallet(command_handle, config.as_ptr(), credentials.as_ptr(), cb)
+        wallet::indy_open_wallet(command_handle, config.as_ptr(), credentials.as_ptr(), cb)
     })
 }
 
@@ -217,7 +239,10 @@ fn _open_wallet(command_handle: CommandHandle, config: &str, credentials: &str, 
 ///     "path": path of the file that contains exported wallet content
 ///     "key": passphrase used to derive export key
 ///   }
-pub fn export_wallet(wallet_handle: WalletHandle, export_config: &str) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn export_wallet(
+    wallet_handle: WalletHandle,
+    export_config: &str,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _export_wallet(command_handle, wallet_handle, export_config, cb);
@@ -225,11 +250,16 @@ pub fn export_wallet(wallet_handle: WalletHandle, export_config: &str) -> Box<dy
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _export_wallet(command_handle: CommandHandle, wallet_handle: WalletHandle, export_config: &str, cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _export_wallet(
+    command_handle: CommandHandle,
+    wallet_handle: WalletHandle,
+    export_config: &str,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     let export_config = c_str!(export_config);
 
     ErrorCode::from(unsafe {
-      wallet::indy_export_wallet(command_handle, wallet_handle, export_config.as_ptr(), cb)
+        wallet::indy_export_wallet(command_handle, wallet_handle, export_config.as_ptr(), cb)
     })
 }
 
@@ -256,7 +286,11 @@ fn _export_wallet(command_handle: CommandHandle, wallet_handle: WalletHandle, ex
 ///     "path": path of the file that contains exported wallet content
 ///     "key": passphrase used to derive export key
 ///   }
-pub fn import_wallet(config: &str, credentials: &str, import_config: &str) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn import_wallet(
+    config: &str,
+    credentials: &str,
+    import_config: &str,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _import_wallet(command_handle, config, credentials, import_config, cb);
@@ -264,18 +298,33 @@ pub fn import_wallet(config: &str, credentials: &str, import_config: &str) -> Bo
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _import_wallet(command_handle: CommandHandle, config: &str, credentials: &str, import_config: &str, cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _import_wallet(
+    command_handle: CommandHandle,
+    config: &str,
+    credentials: &str,
+    import_config: &str,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     let config = c_str!(config);
     let credentials = c_str!(credentials);
     let import_config = c_str!(import_config);
 
     ErrorCode::from(unsafe {
-      wallet::indy_import_wallet(command_handle, config.as_ptr(), credentials.as_ptr(), import_config.as_ptr(), cb)
+        wallet::indy_import_wallet(
+            command_handle,
+            config.as_ptr(),
+            credentials.as_ptr(),
+            import_config.as_ptr(),
+            cb,
+        )
     })
 }
 
 /// Deletes created wallet.
-pub fn delete_wallet(config: &str, credentials: &str) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn delete_wallet(
+    config: &str,
+    credentials: &str,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _delete_wallet(command_handle, config, credentials, cb);
@@ -283,12 +332,17 @@ pub fn delete_wallet(config: &str, credentials: &str) -> Box<dyn Future<Item=(),
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _delete_wallet(command_handle: CommandHandle, config: &str, credentials: &str, cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _delete_wallet(
+    command_handle: CommandHandle,
+    config: &str,
+    credentials: &str,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     let config = c_str!(config);
     let credentials = c_str!(credentials);
 
     ErrorCode::from(unsafe {
-      wallet::indy_delete_wallet(command_handle, config.as_ptr(), credentials.as_ptr(), cb)
+        wallet::indy_delete_wallet(command_handle, config.as_ptr(), credentials.as_ptr(), cb)
     })
 }
 
@@ -296,7 +350,9 @@ fn _delete_wallet(command_handle: CommandHandle, config: &str, credentials: &str
 ///
 /// # Arguments
 /// * `handle` - wallet handle returned by open.
-pub fn close_wallet(wallet_handle: WalletHandle) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn close_wallet(
+    wallet_handle: WalletHandle,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _close_wallet(command_handle, wallet_handle, cb);
@@ -304,7 +360,11 @@ pub fn close_wallet(wallet_handle: WalletHandle) -> Box<dyn Future<Item=(), Erro
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _close_wallet(command_handle: CommandHandle, wallet_handle: WalletHandle, cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _close_wallet(
+    command_handle: CommandHandle,
+    wallet_handle: WalletHandle,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     ErrorCode::from(unsafe { wallet::indy_close_wallet(command_handle, wallet_handle, cb) })
 }
 
@@ -326,27 +386,51 @@ fn _close_wallet(command_handle: CommandHandle, wallet_handle: WalletHandle, cb:
 ///   If tag name starts with "~" the tag will be stored un-encrypted that will allow
 ///   usage of this tag in complex search queries (comparison, predicates)
 ///   Encrypted tags can be searched only for exact matching
-pub fn add_wallet_record(wallet_handle: WalletHandle, xtype: &str, id: &str, value: &str, tags_json: Option<&str>) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn add_wallet_record(
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    id: &str,
+    value: &str,
+    tags_json: Option<&str>,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
-    let err = _add_wallet_record(command_handle, wallet_handle, xtype, id, value, tags_json, cb);
+    let err = _add_wallet_record(
+        command_handle,
+        wallet_handle,
+        xtype,
+        id,
+        value,
+        tags_json,
+        cb,
+    );
 
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _add_wallet_record(command_handle: CommandHandle, wallet_handle: WalletHandle, xtype: &str, id: &str, value: &str, tags_json: Option<&str>, cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _add_wallet_record(
+    command_handle: CommandHandle,
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    id: &str,
+    value: &str,
+    tags_json: Option<&str>,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     let xtype = c_str!(xtype);
     let id = c_str!(id);
     let value = c_str!(value);
     let tags_json_str = opt_c_str!(tags_json);
     ErrorCode::from(unsafe {
-        non_secrets::indy_add_wallet_record(command_handle,
-                                            wallet_handle,
-                                            xtype.as_ptr(),
-                                            id.as_ptr(),
-                                            value.as_ptr(),
-                                            opt_c_ptr!(tags_json, tags_json_str),
-                                             cb)
+        non_secrets::indy_add_wallet_record(
+            command_handle,
+            wallet_handle,
+            xtype.as_ptr(),
+            id.as_ptr(),
+            value.as_ptr(),
+            opt_c_ptr!(tags_json, tags_json_str),
+            cb,
+        )
     })
 }
 
@@ -357,7 +441,12 @@ fn _add_wallet_record(command_handle: CommandHandle, wallet_handle: WalletHandle
 /// * `xtype` - allows to separate different record types collections
 /// * `id` - the id of record
 /// * `value` - the new value of record
-pub fn update_wallet_record_value(wallet_handle: WalletHandle, xtype: &str, id: &str, value: &str) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn update_wallet_record_value(
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    id: &str,
+    value: &str,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _update_wallet_record_value(command_handle, wallet_handle, xtype, id, value, cb);
@@ -365,18 +454,27 @@ pub fn update_wallet_record_value(wallet_handle: WalletHandle, xtype: &str, id: 
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _update_wallet_record_value(command_handle: CommandHandle, wallet_handle: WalletHandle, xtype: &str, id: &str, value: &str, cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _update_wallet_record_value(
+    command_handle: CommandHandle,
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    id: &str,
+    value: &str,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     let xtype = c_str!(xtype);
     let id = c_str!(id);
     let value = c_str!(value);
 
-    ErrorCode::from(unsafe{
-        non_secrets::indy_update_wallet_record_value(command_handle,
-                                                     wallet_handle,
-                                                     xtype.as_ptr(),
-                                                     id.as_ptr(),
-                                                     value.as_ptr(),
-                                                     cb)
+    ErrorCode::from(unsafe {
+        non_secrets::indy_update_wallet_record_value(
+            command_handle,
+            wallet_handle,
+            xtype.as_ptr(),
+            id.as_ptr(),
+            value.as_ptr(),
+            cb,
+        )
     })
 }
 
@@ -396,7 +494,12 @@ fn _update_wallet_record_value(command_handle: CommandHandle, wallet_handle: Wal
 ///   If tag name starts with "~" the tag will be stored un-encrypted that will allow
 ///   usage of this tag in complex search queries (comparison, predicates)
 ///   Encrypted tags can be searched only for exact matching
-pub fn update_wallet_record_tags(wallet_handle: WalletHandle, xtype: &str, id: &str, tags_json: &str) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn update_wallet_record_tags(
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    id: &str,
+    tags_json: &str,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _update_wallet_record_tags(command_handle, wallet_handle, xtype, id, tags_json, cb);
@@ -404,13 +507,27 @@ pub fn update_wallet_record_tags(wallet_handle: WalletHandle, xtype: &str, id: &
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _update_wallet_record_tags(command_handle: CommandHandle, wallet_handle: WalletHandle, xtype: &str, id: &str, tags_json: &str, cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _update_wallet_record_tags(
+    command_handle: CommandHandle,
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    id: &str,
+    tags_json: &str,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     let xtype = c_str!(xtype);
     let id = c_str!(id);
     let tags_json = c_str!(tags_json);
 
     ErrorCode::from(unsafe {
-      non_secrets::indy_update_wallet_record_tags(command_handle, wallet_handle, xtype.as_ptr(), id.as_ptr(), tags_json.as_ptr(), cb)
+        non_secrets::indy_update_wallet_record_tags(
+            command_handle,
+            wallet_handle,
+            xtype.as_ptr(),
+            id.as_ptr(),
+            tags_json.as_ptr(),
+            cb,
+        )
     })
 }
 
@@ -432,7 +549,12 @@ fn _update_wallet_record_tags(command_handle: CommandHandle, wallet_handle: Wall
 ///   Encrypted tags can be searched only for exact matching
 ///   Note if some from provided tags already assigned to the record than
 ///     corresponding tags values will be replaced
-pub fn add_wallet_record_tags(wallet_handle: WalletHandle, xtype: &str, id: &str, tags_json: &str) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn add_wallet_record_tags(
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    id: &str,
+    tags_json: &str,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _add_wallet_record_tags(command_handle, wallet_handle, xtype, id, tags_json, cb);
@@ -440,13 +562,27 @@ pub fn add_wallet_record_tags(wallet_handle: WalletHandle, xtype: &str, id: &str
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _add_wallet_record_tags(command_handle: CommandHandle, wallet_handle: WalletHandle, xtype: &str, id: &str, tags_json: &str, cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _add_wallet_record_tags(
+    command_handle: CommandHandle,
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    id: &str,
+    tags_json: &str,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     let xtype = c_str!(xtype);
     let id = c_str!(id);
     let tags_json = c_str!(tags_json);
 
     ErrorCode::from(unsafe {
-      non_secrets::indy_add_wallet_record_tags(command_handle, wallet_handle, xtype.as_ptr(), id.as_ptr(), tags_json.as_ptr(), cb)
+        non_secrets::indy_add_wallet_record_tags(
+            command_handle,
+            wallet_handle,
+            xtype.as_ptr(),
+            id.as_ptr(),
+            tags_json.as_ptr(),
+            cb,
+        )
     })
 }
 
@@ -458,21 +594,41 @@ fn _add_wallet_record_tags(command_handle: CommandHandle, wallet_handle: WalletH
 /// * `id` - the id of record
 /// * `tag_names_json` - the list of tag names to remove from the record as json array:
 ///   ["tagName1", "tagName2", ...]
-pub fn delete_wallet_record_tags(wallet_handle: WalletHandle, xtype: &str, id: &str, tag_names_json: &str) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn delete_wallet_record_tags(
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    id: &str,
+    tag_names_json: &str,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
-    let err = _delete_wallet_record_tags(command_handle, wallet_handle, xtype, id, tag_names_json, cb);
+    let err =
+        _delete_wallet_record_tags(command_handle, wallet_handle, xtype, id, tag_names_json, cb);
 
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _delete_wallet_record_tags(command_handle: CommandHandle, wallet_handle: WalletHandle, xtype: &str, id: &str, tag_names_json: &str, cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _delete_wallet_record_tags(
+    command_handle: CommandHandle,
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    id: &str,
+    tag_names_json: &str,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     let xtype = c_str!(xtype);
     let id = c_str!(id);
     let tag_names_json = c_str!(tag_names_json);
 
     ErrorCode::from(unsafe {
-      non_secrets::indy_delete_wallet_record_tags(command_handle, wallet_handle, xtype.as_ptr(), id.as_ptr(), tag_names_json.as_ptr(), cb)
+        non_secrets::indy_delete_wallet_record_tags(
+            command_handle,
+            wallet_handle,
+            xtype.as_ptr(),
+            id.as_ptr(),
+            tag_names_json.as_ptr(),
+            cb,
+        )
     })
 }
 
@@ -482,7 +638,11 @@ fn _delete_wallet_record_tags(command_handle: CommandHandle, wallet_handle: Wall
 /// * `wallet_handle` - wallet handle (created by open_wallet)
 /// * `xtype` - record type
 /// * `id` - the id of record
-pub fn delete_wallet_record(wallet_handle: WalletHandle, xtype: &str, id: &str) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn delete_wallet_record(
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    id: &str,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _delete_wallet_record(command_handle, wallet_handle, xtype, id, cb);
@@ -490,12 +650,24 @@ pub fn delete_wallet_record(wallet_handle: WalletHandle, xtype: &str, id: &str) 
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _delete_wallet_record(command_handle: CommandHandle, wallet_handle: WalletHandle, xtype: &str, id: &str, cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _delete_wallet_record(
+    command_handle: CommandHandle,
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    id: &str,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     let xtype = c_str!(xtype);
     let id = c_str!(id);
 
     ErrorCode::from(unsafe {
-      non_secrets::indy_delete_wallet_record(command_handle, wallet_handle, xtype.as_ptr(), id.as_ptr(), cb)
+        non_secrets::indy_delete_wallet_record(
+            command_handle,
+            wallet_handle,
+            xtype.as_ptr(),
+            id.as_ptr(),
+            cb,
+        )
     })
 }
 
@@ -519,7 +691,12 @@ fn _delete_wallet_record(command_handle: CommandHandle, wallet_handle: WalletHan
 ///   value: "Some value", // present only if retrieveValue set to true
 ///   tags: <tags json>, // present only if retrieveTags set to true
 /// }
-pub fn get_wallet_record(wallet_handle: WalletHandle, xtype: &str, id: &str, options_json: &str) -> Box<dyn Future<Item=String, Error=IndyError>> {
+pub fn get_wallet_record(
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    id: &str,
+    options_json: &str,
+) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _get_wallet_record(command_handle, wallet_handle, xtype, id, options_json, cb);
@@ -527,13 +704,27 @@ pub fn get_wallet_record(wallet_handle: WalletHandle, xtype: &str, id: &str, opt
     ResultHandler::str(command_handle, err, receiver)
 }
 
-fn _get_wallet_record(command_handle: CommandHandle, wallet_handle: WalletHandle, xtype: &str, id: &str, options_json: &str, cb: Option<ResponseStringCB>) -> ErrorCode {
+fn _get_wallet_record(
+    command_handle: CommandHandle,
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    id: &str,
+    options_json: &str,
+    cb: Option<ResponseStringCB>,
+) -> ErrorCode {
     let xtype = c_str!(xtype);
     let id = c_str!(id);
     let options_json = c_str!(options_json);
 
     ErrorCode::from(unsafe {
-      non_secrets::indy_get_wallet_record(command_handle, wallet_handle, xtype.as_ptr(), id.as_ptr(), options_json.as_ptr(), cb)
+        non_secrets::indy_get_wallet_record(
+            command_handle,
+            wallet_handle,
+            xtype.as_ptr(),
+            id.as_ptr(),
+            options_json.as_ptr(),
+            cb,
+        )
     })
 }
 
@@ -565,21 +756,47 @@ fn _get_wallet_record(command_handle: CommandHandle, wallet_handle: WalletHandle
 /// # Returns
 /// * `search_handle` - Wallet search handle that can be used later
 ///   to fetch records by small batches (with indy_fetch_wallet_search_next_records)
-pub fn open_wallet_search(wallet_handle: WalletHandle, xtype: &str, query_json: &str, options_json: &str) -> Box<dyn Future<Item=SearchHandle, Error=IndyError>> {
+pub fn open_wallet_search(
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    query_json: &str,
+    options_json: &str,
+) -> Pin<Box<dyn Future<Item = SearchHandle, Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_handle();
 
-    let err = _open_wallet_search(command_handle, wallet_handle, xtype, query_json, options_json, cb);
+    let err = _open_wallet_search(
+        command_handle,
+        wallet_handle,
+        xtype,
+        query_json,
+        options_json,
+        cb,
+    );
 
     ResultHandler::handle(command_handle, err, receiver)
 }
 
-fn _open_wallet_search(command_handle: CommandHandle, wallet_handle: WalletHandle, xtype: &str, query_json: &str, options_json: &str, cb: Option<ResponseI32CB>) -> ErrorCode {
+fn _open_wallet_search(
+    command_handle: CommandHandle,
+    wallet_handle: WalletHandle,
+    xtype: &str,
+    query_json: &str,
+    options_json: &str,
+    cb: Option<ResponseI32CB>,
+) -> ErrorCode {
     let xtype = c_str!(xtype);
     let query_json = c_str!(query_json);
     let options_json = c_str!(options_json);
 
     ErrorCode::from(unsafe {
-      non_secrets::indy_open_wallet_search(command_handle, wallet_handle, xtype.as_ptr(), query_json.as_ptr(), options_json.as_ptr(), cb)
+        non_secrets::indy_open_wallet_search(
+            command_handle,
+            wallet_handle,
+            xtype.as_ptr(),
+            query_json.as_ptr(),
+            options_json.as_ptr(),
+            cb,
+        )
     })
 }
 
@@ -603,17 +820,39 @@ fn _open_wallet_search(command_handle: CommandHandle, wallet_handle: WalletHandl
 ///       tags: <tags json>, // present only if retrieveTags set to true
 ///   }],
 /// }
-pub fn fetch_wallet_search_next_records(wallet_handle: WalletHandle, wallet_search_handle: SearchHandle, count: usize) -> Box<dyn Future<Item=String, Error=IndyError>> {
+pub fn fetch_wallet_search_next_records(
+    wallet_handle: WalletHandle,
+    wallet_search_handle: SearchHandle,
+    count: usize,
+) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
-    let err = _fetch_wallet_search_next_records(command_handle, wallet_handle, wallet_search_handle, count, cb);
+    let err = _fetch_wallet_search_next_records(
+        command_handle,
+        wallet_handle,
+        wallet_search_handle,
+        count,
+        cb,
+    );
 
     ResultHandler::str(command_handle, err, receiver)
 }
 
-fn _fetch_wallet_search_next_records(command_handle: CommandHandle, wallet_handle: WalletHandle, wallet_search_handle: SearchHandle, count: usize, cb: Option<ResponseStringCB>) -> ErrorCode {
+fn _fetch_wallet_search_next_records(
+    command_handle: CommandHandle,
+    wallet_handle: WalletHandle,
+    wallet_search_handle: SearchHandle,
+    count: usize,
+    cb: Option<ResponseStringCB>,
+) -> ErrorCode {
     ErrorCode::from(unsafe {
-      non_secrets::indy_fetch_wallet_search_next_records(command_handle, wallet_handle, wallet_search_handle, count, cb)
+        non_secrets::indy_fetch_wallet_search_next_records(
+            command_handle,
+            wallet_handle,
+            wallet_search_handle,
+            count,
+            cb,
+        )
     })
 }
 
@@ -621,7 +860,9 @@ fn _fetch_wallet_search_next_records(command_handle: CommandHandle, wallet_handl
 ///
 /// # Arguments
 /// * `wallet_search_handle` - wallet search handle
-pub fn close_wallet_search(wallet_search_handle: SearchHandle) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn close_wallet_search(
+    wallet_search_handle: SearchHandle,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _close_wallet_search(command_handle, wallet_search_handle, cb);
@@ -629,16 +870,20 @@ pub fn close_wallet_search(wallet_search_handle: SearchHandle) -> Box<dyn Future
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _close_wallet_search(command_handle: CommandHandle, wallet_search_handle: SearchHandle, cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _close_wallet_search(
+    command_handle: CommandHandle,
+    wallet_search_handle: SearchHandle,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     ErrorCode::from(unsafe {
-      non_secrets::indy_close_wallet_search(command_handle, wallet_search_handle, cb)
+        non_secrets::indy_close_wallet_search(command_handle, wallet_search_handle, cb)
     })
 }
 
 fn _default_credentials(credentials: Option<&str>) -> CString {
     match credentials {
         Some(s) => c_str!(s),
-        None => c_str!(r#"{"key":""}"#)
+        None => c_str!(r#"{"key":""}"#),
     }
 }
 
@@ -655,7 +900,9 @@ fn _default_credentials(credentials: Option<&str>) -> CString {
 ///
 /// # Returns
 /// wallet key can be used with RAW derivation type
-pub fn generate_wallet_key(config: Option<&str>) -> Box<dyn Future<Item=String, Error=IndyError>> {
+pub fn generate_wallet_key(
+    config: Option<&str>,
+) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _generate_wallet_key(command_handle, config, cb);
@@ -663,8 +910,14 @@ pub fn generate_wallet_key(config: Option<&str>) -> Box<dyn Future<Item=String, 
     ResultHandler::str(command_handle, err, receiver)
 }
 
-fn _generate_wallet_key(command_handle: CommandHandle, config: Option<&str>, cb: Option<ResponseStringCB>) -> ErrorCode {
+fn _generate_wallet_key(
+    command_handle: CommandHandle,
+    config: Option<&str>,
+    cb: Option<ResponseStringCB>,
+) -> ErrorCode {
     let config = opt_c_str_json!(config);
 
-    ErrorCode::from(unsafe { wallet::indy_generate_wallet_key(command_handle, config.as_ptr(), cb) })
+    ErrorCode::from(unsafe {
+        wallet::indy_generate_wallet_key(command_handle, config.as_ptr(), cb)
+    })
 }

@@ -1,9 +1,9 @@
+use crate::utils::rand;
 use std::env;
 use std::fs;
-use std::fs::{File};
+use std::fs::File;
 use std::io;
 use std::path::{Path, PathBuf};
-use utils::rand;
 
 pub struct TempFile {
     path: PathBuf,
@@ -15,9 +15,7 @@ impl TempFile {
 
         let _file = File::create(&path)?;
 
-        Ok(TempFile {
-            path: path
-        })
+        Ok(TempFile { path: path })
     }
 }
 
@@ -34,7 +32,7 @@ impl Drop for TempFile {
 }
 
 pub struct TempDir {
-    path: PathBuf
+    path: PathBuf,
 }
 
 impl TempDir {
@@ -43,9 +41,7 @@ impl TempDir {
 
         fs::create_dir(&path)?;
 
-        Ok(TempDir {
-            path: path
-        })
+        Ok(TempDir { path: path })
     }
 }
 
@@ -74,7 +70,6 @@ fn generate_temp_path(name: Option<&str>, prefix: &str) -> PathBuf {
     path
 }
 
-
 #[cfg(test)]
 mod test_temp_file {
     use super::*;
@@ -90,7 +85,7 @@ mod test_temp_file {
             assert!(path.exists());
         }
 
-        assert!(! path.exists());
+        assert!(!path.exists());
     }
 
     #[test]
@@ -117,7 +112,6 @@ mod test_temp_file {
             assert!(path.exists());
         }
 
-        assert!(! path.exists());
+        assert!(!path.exists());
     }
-
 }

@@ -1,14 +1,14 @@
-use {ErrorCode, IndyError};
+use crate::{ErrorCode, IndyError};
 
 use std::ffi::CString;
 
-use ffi::{logger, CVoid, CString as IndyCString};
+use ffi::{logger, CString as IndyCString, CVoid};
 
-use log::{Log, Record, Metadata, Level};
+use log::{Level, Log, Metadata, Record};
 
 use std::ptr::null;
 
-use utils::ctypes::c_str_to_string;
+use crate::utils::ctypes::c_str_to_string;
 
 static mut LOGGER: Option<Box<&'static dyn Log>> = None;
 
@@ -28,7 +28,7 @@ pub fn set_default_logger(pattern: Option<&str>) -> Result<(), IndyError> {
 
     match res {
         ErrorCode::Success => Ok(()),
-        err => Err(IndyError::new(err))
+        err => Err(IndyError::new(err)),
     }
 }
 
@@ -61,41 +61,39 @@ pub fn set_logger(logger: &'static dyn Log) -> Result<(), IndyError> {
 
     match res {
         ErrorCode::Success => Ok(()),
-        err => Err(IndyError::new(err))
+        err => Err(IndyError::new(err)),
     }
 }
 
 pub struct IndyLogger;
 
 impl IndyLogger {
-    pub extern fn enabled_cb(_context: *const CVoid,
-                             level: u32,
-                             target: IndyCString) -> bool {
+    pub extern "C" fn enabled_cb(_context: *const CVoid, level: u32, target: IndyCString) -> bool {
         unsafe {
             match LOGGER {
                 Some(ref logger) => {
                     let level = Self::get_level(level);
                     let target = c_str_to_string(target).unwrap().unwrap();
 
-                    let metadata: Metadata = Metadata::builder()
-                        .level(level)
-                        .target(&target)
-                        .build();
+                    let metadata: Metadata =
+                        Metadata::builder().level(level).target(&target).build();
 
                     logger.enabled(&metadata)
                 }
-                None => true
+                None => true,
             }
         }
     }
 
-    extern fn log_cb(_context: *const CVoid,
-                     level: u32,
-                     target: IndyCString,
-                     args: IndyCString,
-                     module_path: IndyCString,
-                     file: IndyCString,
-                     line: u32) {
+    extern "C" fn log_cb(
+        _context: *const CVoid,
+        level: u32,
+        target: IndyCString,
+        args: IndyCString,
+        module_path: IndyCString,
+        file: IndyCString,
+        line: u32,
+    ) {
         unsafe {
             if let Some(ref logger) = LOGGER {
                 let target = c_str_to_string(target).unwrap().unwrap();
@@ -118,9 +116,11 @@ impl IndyLogger {
         }
     }
 
-    pub extern fn flush_cb(_context: *const CVoid) {
+    pub extern "C" fn flush_cb(_context: *const CVoid) {
         unsafe {
-            if let Some(ref logger) = LOGGER { logger.flush() }
+            if let Some(ref logger) = LOGGER {
+                logger.flush()
+            }
         }
     }
 
@@ -139,7 +139,7 @@ impl IndyLogger {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use log::{set_boxed_logger, logger};
+    use log::{logger, set_boxed_logger};
 
     #[test]
     fn test_logger() {
@@ -161,10 +161,10 @@ mod tests {
                 record.target(),
                 record.file().unwrap_or(""),
                 record.line(),
-                record.args());
+                record.args()
+            );
         }
 
         fn flush(&self) {}
     }
 }
-

@@ -1,19 +1,20 @@
 use futures::Future;
 
-use {ErrorCode, IndyError};
+use crate::{ErrorCode, IndyError};
 
 use ffi::metrics;
+use std::pin::Pin;
 
-use utils::callbacks::{ClosureHandler, ResultHandler};
+use crate::utils::callbacks::{ClosureHandler, ResultHandler};
 
+use crate::CommandHandle;
 use ffi::ResponseStringCB;
-use CommandHandle;
 
 /// Collect metrics from libindy.
 ///
 /// # Returns
 /// String with a dictionary of metrics in JSON format. Where keys are names of metrics.
-pub fn collect_metrics() -> Box<dyn Future<Item=String, Error=IndyError>> {
+pub fn collect_metrics() -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _collect_metrics(command_handle, cb);
@@ -22,7 +23,5 @@ pub fn collect_metrics() -> Box<dyn Future<Item=String, Error=IndyError>> {
 }
 
 fn _collect_metrics(command_handle: CommandHandle, cb: Option<ResponseStringCB>) -> ErrorCode {
-    ErrorCode::from(unsafe {
-      metrics::indy_collect_metrics(command_handle, cb)
-    })
+    ErrorCode::from(unsafe { metrics::indy_collect_metrics(command_handle, cb) })
 }

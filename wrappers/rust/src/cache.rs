@@ -1,14 +1,15 @@
 use futures::Future;
 
-use {ErrorCode, IndyError};
+use crate::{ErrorCode, IndyError};
 
 use std::ffi::CString;
+use std::pin::Pin;
 
-use utils::callbacks::{ClosureHandler, ResultHandler};
+use crate::utils::callbacks::{ClosureHandler, ResultHandler};
 
+use crate::{CommandHandle, PoolHandle, WalletHandle};
 use ffi::cache;
 use ffi::{ResponseEmptyCB, ResponseStringCB};
-use {WalletHandle, CommandHandle, PoolHandle};
 
 /// Get schema json data for specified schema id.
 /// If data is present inside of cache, cached data is returned.
@@ -37,34 +38,52 @@ use {WalletHandle, CommandHandle, PoolHandle};
 ///     version: Schema's version string
 ///     ver: Version of the Schema json
 /// }
-pub fn get_schema(pool_handle: PoolHandle,
-                  wallet_handle: WalletHandle,
-                  submitter_did: &str,
-                  id: &str,
-                  options_json: &str) -> Box<dyn Future<Item=String, Error=IndyError>> {
+pub fn get_schema(
+    pool_handle: PoolHandle,
+    wallet_handle: WalletHandle,
+    submitter_did: &str,
+    id: &str,
+    options_json: &str,
+) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
-    let err = _get_schema(command_handle, pool_handle, wallet_handle, submitter_did, id, options_json, cb);
+    let err = _get_schema(
+        command_handle,
+        pool_handle,
+        wallet_handle,
+        submitter_did,
+        id,
+        options_json,
+        cb,
+    );
 
     ResultHandler::str(command_handle, err, receiver)
 }
 
-pub fn _get_schema(command_handle: CommandHandle,
-                   pool_handle: PoolHandle,
-                   wallet_handle: WalletHandle,
-                   submitter_did: &str,
-                   id: &str,
-                   options_json: &str,
-                   cb: Option<ResponseStringCB>) -> ErrorCode {
+pub fn _get_schema(
+    command_handle: CommandHandle,
+    pool_handle: PoolHandle,
+    wallet_handle: WalletHandle,
+    submitter_did: &str,
+    id: &str,
+    options_json: &str,
+    cb: Option<ResponseStringCB>,
+) -> ErrorCode {
     let submitter_did = c_str!(submitter_did);
     let id = c_str!(id);
     let options_json = c_str!(options_json);
 
-    ErrorCode::from(
-        unsafe {
-            cache::indy_get_schema(command_handle, pool_handle, wallet_handle, submitter_did.as_ptr(), id.as_ptr(), options_json.as_ptr(), cb)
-        }
-    )
+    ErrorCode::from(unsafe {
+        cache::indy_get_schema(
+            command_handle,
+            pool_handle,
+            wallet_handle,
+            submitter_did.as_ptr(),
+            id.as_ptr(),
+            options_json.as_ptr(),
+            cb,
+        )
+    })
 }
 
 /// Get credential definition json data for specified credential definition id.
@@ -98,34 +117,52 @@ pub fn _get_schema(command_handle: CommandHandle,
 ///     },
 ///     ver: Version of the Credential Definition json
 /// }
-pub fn get_cred_def(pool_handle: PoolHandle,
-                    wallet_handle: WalletHandle,
-                    submitter_did: &str,
-                    id: &str,
-                    options_json: &str) -> Box<dyn Future<Item=String, Error=IndyError>> {
+pub fn get_cred_def(
+    pool_handle: PoolHandle,
+    wallet_handle: WalletHandle,
+    submitter_did: &str,
+    id: &str,
+    options_json: &str,
+) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
-    let err = _get_cred_def(command_handle, pool_handle, wallet_handle, submitter_did, id, options_json, cb);
+    let err = _get_cred_def(
+        command_handle,
+        pool_handle,
+        wallet_handle,
+        submitter_did,
+        id,
+        options_json,
+        cb,
+    );
 
     ResultHandler::str(command_handle, err, receiver)
 }
 
-pub fn _get_cred_def(command_handle: CommandHandle,
-                     pool_handle: PoolHandle,
-                     wallet_handle: WalletHandle,
-                     submitter_did: &str,
-                     id: &str,
-                     options_json: &str,
-                     cb: Option<ResponseStringCB>) -> ErrorCode {
+pub fn _get_cred_def(
+    command_handle: CommandHandle,
+    pool_handle: PoolHandle,
+    wallet_handle: WalletHandle,
+    submitter_did: &str,
+    id: &str,
+    options_json: &str,
+    cb: Option<ResponseStringCB>,
+) -> ErrorCode {
     let submitter_did = c_str!(submitter_did);
     let id = c_str!(id);
     let options_json = c_str!(options_json);
 
-    ErrorCode::from(
-        unsafe {
-            cache::indy_get_cred_def(command_handle, pool_handle, wallet_handle, submitter_did.as_ptr(), id.as_ptr(), options_json.as_ptr(), cb)
-        }
-    )
+    ErrorCode::from(unsafe {
+        cache::indy_get_cred_def(
+            command_handle,
+            pool_handle,
+            wallet_handle,
+            submitter_did.as_ptr(),
+            id.as_ptr(),
+            options_json.as_ptr(),
+            cb,
+        )
+    })
 }
 
 /// Purge schema cache.
@@ -139,7 +176,10 @@ pub fn _get_cred_def(command_handle: CommandHandle,
 ///  {
 ///    maxAge: (int, optional, -1 by default) Purge cached data if older than this many seconds. -1 means purge all.
 ///  }
-pub fn purge_schema_cache(wallet_handle: WalletHandle, options_json: &str) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn purge_schema_cache(
+    wallet_handle: WalletHandle,
+    options_json: &str,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _purge_schema_cache(command_handle, wallet_handle, options_json, cb);
@@ -147,10 +187,17 @@ pub fn purge_schema_cache(wallet_handle: WalletHandle, options_json: &str) -> Bo
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _purge_schema_cache(command_handle: CommandHandle, wallet_handle: WalletHandle, options_json: &str, cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _purge_schema_cache(
+    command_handle: CommandHandle,
+    wallet_handle: WalletHandle,
+    options_json: &str,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     let options_json = c_str!(options_json);
 
-    ErrorCode::from(unsafe { cache::indy_purge_schema_cache(command_handle, wallet_handle, options_json.as_ptr(), cb) })
+    ErrorCode::from(unsafe {
+        cache::indy_purge_schema_cache(command_handle, wallet_handle, options_json.as_ptr(), cb)
+    })
 }
 
 /// Purge credential definition cache.
@@ -164,7 +211,10 @@ fn _purge_schema_cache(command_handle: CommandHandle, wallet_handle: WalletHandl
 ///  {
 ///    maxAge: (int, optional, -1 by default) Purge cached data if older than this many seconds. -1 means purge all.
 ///  }
-pub fn purge_cred_def_cache(wallet_handle: WalletHandle, options_json: &str) -> Box<dyn Future<Item=(), Error=IndyError>> {
+pub fn purge_cred_def_cache(
+    wallet_handle: WalletHandle,
+    options_json: &str,
+) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _purge_cred_def_cache(command_handle, wallet_handle, options_json, cb);
@@ -172,8 +222,15 @@ pub fn purge_cred_def_cache(wallet_handle: WalletHandle, options_json: &str) -> 
     ResultHandler::empty(command_handle, err, receiver)
 }
 
-fn _purge_cred_def_cache(command_handle: CommandHandle, wallet_handle: WalletHandle, options_json: &str, cb: Option<ResponseEmptyCB>) -> ErrorCode {
+fn _purge_cred_def_cache(
+    command_handle: CommandHandle,
+    wallet_handle: WalletHandle,
+    options_json: &str,
+    cb: Option<ResponseEmptyCB>,
+) -> ErrorCode {
     let options_json = c_str!(options_json);
 
-    ErrorCode::from(unsafe { cache::indy_purge_cred_def_cache(command_handle, wallet_handle, options_json.as_ptr(), cb) })
+    ErrorCode::from(unsafe {
+        cache::indy_purge_cred_def_cache(command_handle, wallet_handle, options_json.as_ptr(), cb)
+    })
 }

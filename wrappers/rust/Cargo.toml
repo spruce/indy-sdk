@@ -6,6 +6,8 @@ authors = ["Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.or
 homepage = "https://github.com/hyperledger/indy-sdk"
 repository = "https://github.com/hyperledger/indy-sdk"
 categories = ["api-bindings", "development-tools"]
+edition = "2018"
+
 license = "MIT/Apache-2.0"
 readme = "README.md"
 exclude = [

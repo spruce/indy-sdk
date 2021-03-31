@@ -1,12 +1,12 @@
 #![cfg_attr(feature = "fatal_warnings", deny(warnings))]
 
-extern crate atty;
 extern crate ansi_term;
-extern crate unescape;
+extern crate atty;
 #[cfg(test)]
 extern crate lazy_static;
 extern crate libc;
 extern crate linefeed;
+extern crate unescape;
 #[macro_use]
 extern crate log;
 extern crate serde;
@@ -14,9 +14,9 @@ extern crate serde;
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
-extern crate prettytable;
-extern crate log4rs;
 extern crate indyrs as indy;
+extern crate log4rs;
+extern crate prettytable;
 
 #[macro_use]
 mod utils;
@@ -27,11 +27,11 @@ mod libindy;
 
 use crate::command_executor::CommandExecutor;
 
-use crate::commands::{common, did, ledger, pool, wallet, payment_address};
+use crate::commands::{common, did, ledger, payment_address, pool, wallet};
 use crate::utils::history;
 
-use linefeed::{Reader, ReadResult, Terminal, Signal};
 use linefeed::complete::{Completer, Completion};
+use linefeed::{ReadResult, Reader, Signal, Terminal};
 
 use std::env;
 use std::fs::File;
@@ -51,23 +51,34 @@ fn main() {
         match arg.as_str() {
             "-h" | "--help" => return _print_help(),
             "--config" => {
-                let file = unwrap_or_return!(args.next(), println_err!("CLI configuration file is not specified"));
+                let file = unwrap_or_return!(
+                    args.next(),
+                    println_err!("CLI configuration file is not specified")
+                );
 
                 match CliConfig::read_from_file(&file)
-                    .and_then(|config| config.handle(&command_executor)) {
+                    .and_then(|config| config.handle(&command_executor))
+                {
                     Ok(()) => {}
-                    Err(err) => return println_err!("{}", err)
+                    Err(err) => return println_err!("{}", err),
                 }
             }
             "--logger-config" => {
-                let file = unwrap_or_return!(args.next(), println_err!("Logger config file is not specified"));
+                let file = unwrap_or_return!(
+                    args.next(),
+                    println_err!("Logger config file is not specified")
+                );
                 match utils::logger::IndyCliLogger::init(&file) {
-                    Ok(()) => println_succ!("Logger has been initialized according to the config file: \"{}\"", file),
-                    Err(err) => return println_err!("{}", err)
+                    Ok(()) => println_succ!(
+                        "Logger has been initialized according to the config file: \"{}\"",
+                        file
+                    ),
+                    Err(err) => return println_err!("{}", err),
                 }
             }
             "--plugins" => {
-                let plugins = unwrap_or_return!(args.next(), println_err!("Plugins are not specified"));
+                let plugins =
+                    unwrap_or_return!(args.next(), println_err!("Plugins are not specified"));
                 _load_plugins(&command_executor, &plugins)
             }
             _ if args.len() == 0 => {
@@ -76,7 +87,7 @@ fn main() {
                 if command_executor.ctx().is_exit() {
                     return;
                 }
-            },
+            }
             _ => {
                 println_err!("Unknown option");
                 return _print_help();
@@ -106,14 +117,22 @@ impl CliConfig {
     fn handle(&self, command_executor: &CommandExecutor) -> Result<(), String> {
         if let Some(ref logger_config) = self.logger_config {
             utils::logger::IndyCliLogger::init(logger_config)?;
-            println_succ!("Logger has been initialized according to the config file: \"{}\"", logger_config);
+            println_succ!(
+                "Logger has been initialized according to the config file: \"{}\"",
+                logger_config
+            );
         }
         if let Some(ref plugins) = self.plugins {
             _load_plugins(&command_executor, plugins);
         }
         if let Some(ref taa_acceptance_mechanism) = self.taa_acceptance_mechanism {
-            command_executor.ctx().set_taa_acceptance_mechanism(taa_acceptance_mechanism);
-            println_succ!("\"{}\" is used as transaction author agreement acceptance mechanism", taa_acceptance_mechanism);
+            command_executor
+                .ctx()
+                .set_taa_acceptance_mechanism(taa_acceptance_mechanism);
+            println_succ!(
+                "\"{}\" is used as transaction author agreement acceptance mechanism",
+                taa_acceptance_mechanism
+            );
         }
         Ok(())
     }
@@ -209,7 +228,9 @@ fn execute_stdin(command_executor: CommandExecutor) {
 }
 
 fn execute_interactive<T>(command_executor: CommandExecutor, mut reader: Reader<T>)
-    where T: Terminal {
+where
+    T: Terminal,
+{
     let command_executor = Rc::new(command_executor);
     reader.set_completer(command_executor.clone());
     reader.set_prompt(&command_executor.ctx().get_prompt());
@@ -231,12 +252,15 @@ fn execute_interactive<T>(command_executor: CommandExecutor, mut reader: Reader<
                     history::persist(&reader).ok();
                     break;
                 }
-            },
-            ReadResult::Eof | ReadResult::Signal(Signal::Quit) | ReadResult::Signal(Signal::Break)| ReadResult::Signal(Signal::Interrupt) => {
+            }
+            ReadResult::Eof
+            | ReadResult::Signal(Signal::Quit)
+            | ReadResult::Signal(Signal::Break)
+            | ReadResult::Signal(Signal::Interrupt) => {
                 history::persist(&reader).ok();
                 break;
-            },
-            _ => {break}
+            }
+            _ => break,
         }
     }
 }
@@ -246,7 +270,9 @@ fn execute_batch(command_executor: &CommandExecutor, script_path: Option<&str>) 
     if let Some(script_path) = script_path {
         let file = match File::open(script_path) {
             Ok(file) => file,
-            Err(err) => return println_err!("Can't open script file {}\nError: {}", script_path, err),
+            Err(err) => {
+                return println_err!("Can't open script file {}\nError: {}", script_path, err)
+            }
         };
         _iter_batch(command_executor, BufReader::new(file));
     } else {
@@ -260,8 +286,14 @@ fn _load_plugins(command_executor: &CommandExecutor, plugins_str: &str) {
     for plugin in plugins_str.split(',') {
         let parts: Vec<&str> = plugin.split(':').collect::<Vec<&str>>();
 
-        let name = unwrap_or_return!(parts.get(0), println_err!("Plugin Name not found in {}", plugin));
-        let init_func = unwrap_or_return!(parts.get(1), println_err!("Plugin Init function not found in {}", plugin));
+        let name = unwrap_or_return!(
+            parts.get(0),
+            println_err!("Plugin Name not found in {}", plugin)
+        );
+        let init_func = unwrap_or_return!(
+            parts.get(1),
+            println_err!("Plugin Init function not found in {}", plugin)
+        );
 
         common::load_plugin(command_executor.ctx(), name, init_func).ok();
     }
@@ -271,10 +303,14 @@ fn _print_help() {
     println_acc!("Hyperledger Indy CLI");
     println!();
     println_acc!("CLI supports 2 execution modes:");
-    println_acc!("\tInteractive - reads commands from terminal. To start just run indy-cli without params.");
+    println_acc!(
+        "\tInteractive - reads commands from terminal. To start just run indy-cli without params."
+    );
     println_acc!("\tUsage: indy-cli");
     println!();
-    println_acc!("\tBatch - all commands will be read from text file or pipe and executed in series.");
+    println_acc!(
+        "\tBatch - all commands will be read from text file or pipe and executed in series."
+    );
     println_acc!("\tUsage: indy-cli <path-to-text-file>");
     println!();
     println_acc!("Options:");
@@ -284,7 +320,9 @@ fn _print_help() {
     println_acc!("\tInit logger according to a config file. \n\tIndy Cli uses `log4rs` logging framework: https://crates.io/crates/log4rs");
     println_acc!("\tUsage: indy-cli --logger-config <path-to-config-file>");
     println!();
-    println_acc!("\tUse config file for CLI initialization. A config file can contain the following fields:");
+    println_acc!(
+        "\tUse config file for CLI initialization. A config file can contain the following fields:"
+    );
     println_acc!("\t\tplugins - a list of plugins to load in Libindy (is equal to usage of \"--plugins\" option).");
     println_acc!("\t\tloggerConfig - path to a logger config file (is equal to usage of \"--logger-config\" option).");
     println_acc!("\t\ttaaAcceptanceMechanism - transaction author agreement acceptance mechanism to use for sending write transactions to the Ledger.");
@@ -292,10 +330,15 @@ fn _print_help() {
     println!();
 }
 
-fn _iter_batch<T>(command_executor: &CommandExecutor, reader: T) where T: std::io::BufRead {
+fn _iter_batch<T>(command_executor: &CommandExecutor, reader: T)
+where
+    T: std::io::BufRead,
+{
     let mut line_num = 1;
     for line in reader.lines() {
-        let line = if let Ok(line) = line { line } else {
+        let line = if let Ok(line) = line {
+            line
+        } else {
             return println_err!("Can't parse line #{}", line_num);
         };
 
@@ -323,18 +366,22 @@ fn _iter_batch<T>(command_executor: &CommandExecutor, reader: T) where T: std::i
 }
 
 impl<Term: Terminal> Completer<Term> for CommandExecutor {
-    fn complete(&self, word: &str, reader: &Reader<Term>,
-                _start: usize, _end: usize) -> Option<Vec<Completion>> {
-        Some(self
-            .complete(reader.buffer(),
-                      word,
-                      reader.cursor())
-            .into_iter()
-            .map(|c| Completion {
-                completion: c.0,
-                display: None,
-                suffix: linefeed::Suffix::Some(c.1),
-            })
-            .collect())
+    fn complete(
+        &self,
+        word: &str,
+        reader: &Reader<Term>,
+        _start: usize,
+        _end: usize,
+    ) -> Option<Vec<Completion>> {
+        Some(
+            self.complete(reader.buffer(), word, reader.cursor())
+                .into_iter()
+                .map(|c| Completion {
+                    completion: c.0,
+                    display: None,
+                    suffix: linefeed::Suffix::Some(c.1),
+                })
+                .collect(),
+        )
     }
 }

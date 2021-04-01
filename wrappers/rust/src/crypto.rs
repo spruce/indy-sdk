@@ -3,10 +3,7 @@ use ffi::{
     ResponseBoolCB, ResponseEmptyCB, ResponseSliceCB, ResponseStringCB, ResponseStringSliceCB,
 };
 
-use futures::Future;
-
 use std::ffi::CString;
-use std::pin::Pin;
 use std::ptr::null;
 
 use crate::utils::callbacks::{ClosureHandler, ResultHandler};
@@ -27,15 +24,15 @@ use crate::{ErrorCode, IndyError};
 /// }
 /// # Returns
 /// verkey of generated key pair, also used as key identifier
-pub fn create_key(
+pub async fn create_key(
     wallet_handle: WalletHandle,
     my_key_json: Option<&str>,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _create_key(command_handle, wallet_handle, my_key_json, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _create_key(
@@ -56,16 +53,16 @@ fn _create_key(
 /// * `wallet_handle` - wallet handle (created by Wallet::open)
 /// * `verkey` - the public key or key id where to store the metadata
 /// * `metadata` - the metadata that will be stored with the key, can be empty string
-pub fn set_key_metadata(
+pub async fn set_key_metadata(
     wallet_handle: WalletHandle,
     verkey: &str,
     metadata: &str,
-) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
+) -> Result<(), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _set_key_metadata(command_handle, wallet_handle, verkey, metadata, cb);
 
-    ResultHandler::empty(command_handle, err, receiver)
+    ResultHandler::empty(command_handle, err, receiver).await
 }
 
 fn _set_key_metadata(
@@ -95,15 +92,15 @@ fn _set_key_metadata(
 /// * `verkey` - the public key or key id to retrieve metadata
 /// # Returns
 /// metadata currently stored with the key; Can be empty if no metadata was saved for this key
-pub fn get_key_metadata(
+pub async fn get_key_metadata(
     wallet_handle: WalletHandle,
     verkey: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _get_key_metadata(command_handle, wallet_handle, verkey, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _get_key_metadata(
@@ -126,16 +123,16 @@ fn _get_key_metadata(
 /// * `message` - the data to be signed
 /// # Returns
 /// the signature
-pub fn sign(
+pub async fn sign(
     wallet_handle: WalletHandle,
     signer_vk: &str,
     message: &[u8],
-) -> Pin<Box<dyn Future<Item = Vec<u8>, Error = IndyError>>> {
+) -> Result<Vec<u8>, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_slice();
 
     let err = _sign(command_handle, wallet_handle, signer_vk, message, cb);
 
-    ResultHandler::slice(command_handle, err, receiver)
+    ResultHandler::slice(command_handle, err, receiver).await
 }
 
 fn _sign(
@@ -166,16 +163,12 @@ fn _sign(
 /// * `signature` - the signature to verify
 /// # Returns
 /// true if signature is valid, false otherwise
-pub fn verify(
-    signer_vk: &str,
-    message: &[u8],
-    signature: &[u8],
-) -> Pin<Box<dyn Future<Item = bool, Error = IndyError>>> {
+pub async fn verify(signer_vk: &str, message: &[u8], signature: &[u8]) -> Result<bool, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_bool();
 
     let err = _verify(command_handle, signer_vk, message, signature, cb);
 
-    ResultHandler::bool(command_handle, err, receiver)
+    ResultHandler::bool(command_handle, err, receiver).await
 }
 
 fn _verify(
@@ -218,12 +211,12 @@ fn _verify(
 /// * `message` - the data to be encrypted
 /// # Returns
 /// the encrypted message
-pub fn auth_crypt(
+pub async fn auth_crypt(
     wallet_handle: WalletHandle,
     sender_vk: &str,
     recipient_vk: &str,
     message: &[u8],
-) -> Pin<Box<dyn Future<Item = Vec<u8>, Error = IndyError>>> {
+) -> Result<Vec<u8>, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_slice();
 
     let err = _auth_crypt(
@@ -235,7 +228,7 @@ pub fn auth_crypt(
         cb,
     );
 
-    ResultHandler::slice(command_handle, err, receiver)
+    ResultHandler::slice(command_handle, err, receiver).await
 }
 
 fn _auth_crypt(
@@ -279,11 +272,11 @@ fn _auth_crypt(
 /// * `encrypted_message`: the message to be decrypted
 /// # Returns
 /// sender's verkey and decrypted message
-pub fn auth_decrypt(
+pub async fn auth_decrypt(
     wallet_handle: WalletHandle,
     recipient_vk: &str,
     encrypted_message: &[u8],
-) -> Pin<Box<dyn Future<Item = (String, Vec<u8>), Error = IndyError>>> {
+) -> Result<(String, Vec<u8>), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_slice();
 
     let err = _auth_decrypt(
@@ -294,7 +287,7 @@ pub fn auth_decrypt(
         cb,
     );
 
-    ResultHandler::str_slice(command_handle, err, receiver)
+    ResultHandler::str_slice(command_handle, err, receiver).await
 }
 
 fn _auth_decrypt(
@@ -335,15 +328,12 @@ fn _auth_decrypt(
 ///
 /// # Returns
 /// the encrypted message
-pub fn anon_crypt(
-    recipient_vk: &str,
-    message: &[u8],
-) -> Pin<Box<dyn Future<Item = Vec<u8>, Error = IndyError>>> {
+pub async fn anon_crypt(recipient_vk: &str, message: &[u8]) -> Result<Vec<u8>, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_slice();
 
     let err = _anon_crypt(command_handle, recipient_vk, message, cb);
 
-    ResultHandler::slice(command_handle, err, receiver)
+    ResultHandler::slice(command_handle, err, receiver).await
 }
 
 fn _anon_crypt(
@@ -382,11 +372,11 @@ fn _anon_crypt(
 ///
 /// # Returns
 /// decrypted message
-pub fn anon_decrypt(
+pub async fn anon_decrypt(
     wallet_handle: WalletHandle,
     recipient_vk: &str,
     encrypted_message: &[u8],
-) -> Pin<Box<dyn Future<Item = Vec<u8>, Error = IndyError>>> {
+) -> Result<Vec<u8>, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_slice();
 
     let err = _anon_decrypt(
@@ -397,7 +387,7 @@ pub fn anon_decrypt(
         cb,
     );
 
-    ResultHandler::slice(command_handle, err, receiver)
+    ResultHandler::slice(command_handle, err, receiver).await
 }
 
 fn _anon_decrypt(
@@ -431,12 +421,12 @@ fn _anon_decrypt(
 /// * `sender` : a string of the sender's verkey When None is used in this parameter, anoncrypt is used
 /// # Returns
 /// a json structure in the form of a JWE that contains the encrypted message and associated metadata
-pub fn pack_message(
+pub async fn pack_message(
     wallet_handle: WalletHandle,
     message: &[u8],
     receiver_keys: &str,
     sender: Option<&str>,
-) -> Pin<Box<dyn Future<Item = Vec<u8>, Error = IndyError>>> {
+) -> Result<Vec<u8>, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_slice();
 
     let err = _pack_message(
@@ -448,7 +438,7 @@ pub fn pack_message(
         cb,
     );
 
-    ResultHandler::slice(command_handle, err, receiver)
+    ResultHandler::slice(command_handle, err, receiver).await
 }
 
 fn _pack_message(
@@ -484,15 +474,12 @@ fn _pack_message(
 /// * `jwe`: a pointer to the first byte of the JWE string
 /// # Returns
 /// a json structure that contains a decrypted message and a sender_verkey if packed with authcrypt
-pub fn unpack_message(
-    wallet_handle: WalletHandle,
-    jwe: &[u8],
-) -> Pin<Box<dyn Future<Item = Vec<u8>, Error = IndyError>>> {
+pub async fn unpack_message(wallet_handle: WalletHandle, jwe: &[u8]) -> Result<Vec<u8>, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_slice();
 
     let err = _unpack_message(command_handle, wallet_handle, jwe, cb);
 
-    ResultHandler::slice(command_handle, err, receiver)
+    ResultHandler::slice(command_handle, err, receiver).await
 }
 
 fn _unpack_message(

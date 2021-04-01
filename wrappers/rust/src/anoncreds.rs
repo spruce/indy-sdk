@@ -3,9 +3,6 @@ use crate::{ErrorCode, IndyError};
 use std::ffi::CString;
 use std::ptr::null;
 
-use futures::Future;
-use std::pin::Pin;
-
 use crate::utils::callbacks::{ClosureHandler, ResultHandler};
 
 use crate::{
@@ -46,17 +43,17 @@ https://github.com/hyperledger/indy-hipe/blob/c761c583b1e01c1e9d3ceda2b03b35336f
 /// # Returns
 /// * `schema_id`: identifier of created schema
 /// * `schema_json`: schema as json
-pub fn issuer_create_schema(
+pub async fn issuer_create_schema(
     issuer_did: &str,
     name: &str,
     version: &str,
     attrs: &str,
-) -> Pin<Box<dyn Future<Item = (String, String), Error = IndyError>>> {
+) -> Result<(String, String), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_string();
 
     let err = _issuer_create_schema(command_handle, issuer_did, name, version, attrs, cb);
 
-    ResultHandler::str_str(command_handle, err, receiver)
+    ResultHandler::str_str(command_handle, err, receiver).await
 }
 
 fn _issuer_create_schema(
@@ -128,14 +125,14 @@ fn _issuer_create_schema(
 /// Note: `primary` and `revocation` fields of credential definition are complex opaque types that contain data structures internal to Ursa.
 /// They should not be parsed and are likely to change in future versions.
 ///
-pub fn issuer_create_and_store_credential_def(
+pub async fn issuer_create_and_store_credential_def(
     wallet_handle: WalletHandle,
     issuer_did: &str,
     schema_json: &str,
     tag: &str,
     signature_type: Option<&str>,
     config_json: &str,
-) -> Pin<Box<dyn Future<Item = (String, String), Error = IndyError>>> {
+) -> Result<(String, String), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_string();
 
     let err = _issuer_create_and_store_credential_def(
@@ -149,7 +146,7 @@ pub fn issuer_create_and_store_credential_def(
         cb,
     );
 
-    ResultHandler::str_str(command_handle, err, receiver)
+    ResultHandler::str_str(command_handle, err, receiver).await
 }
 
 fn _issuer_create_and_store_credential_def(
@@ -195,11 +192,11 @@ fn _issuer_create_and_store_credential_def(
 ///
 /// # Returns
 /// * `cred_def_json`: public part of temporary created credential definition
-pub fn issuer_rotate_credential_def_start(
+pub async fn issuer_rotate_credential_def_start(
     wallet_handle: WalletHandle,
     cred_def_id: &str,
     config_json: Option<&str>,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _issuer_rotate_credential_def_start(
@@ -210,7 +207,7 @@ pub fn issuer_rotate_credential_def_start(
         cb,
     );
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _issuer_rotate_credential_def_start(
@@ -241,15 +238,15 @@ fn _issuer_rotate_credential_def_start(
 /// * `cred_def_id`: an identifier of created credential definition stored in the wallet
 ///
 /// # Returns
-pub fn issuer_rotate_credential_def_apply(
+pub async fn issuer_rotate_credential_def_apply(
     wallet_handle: WalletHandle,
     cred_def_id: &str,
-) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
+) -> Result<(), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _issuer_rotate_credential_def_apply(command_handle, wallet_handle, cred_def_id, cb);
 
-    ResultHandler::empty(command_handle, err, receiver)
+    ResultHandler::empty(command_handle, err, receiver).await
 }
 
 fn _issuer_rotate_credential_def_apply(
@@ -338,7 +335,7 @@ fn _issuer_rotate_credential_def_apply(
 ///     },
 ///     ver: string - version revocation registry entry json
 /// }
-pub fn issuer_create_and_store_revoc_reg(
+pub async fn issuer_create_and_store_revoc_reg(
     wallet_handle: WalletHandle,
     issuer_did: &str,
     revoc_def_type: Option<&str>,
@@ -346,7 +343,7 @@ pub fn issuer_create_and_store_revoc_reg(
     cred_def_id: &str,
     config_json: &str,
     tails_writer_handle: TailsWriterHandle,
-) -> Pin<Box<dyn Future<Item = (String, String, String), Error = IndyError>>> {
+) -> Result<(String, String, String), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_string_string();
 
     let err = _issuer_create_and_store_revoc_reg(
@@ -361,7 +358,7 @@ pub fn issuer_create_and_store_revoc_reg(
         cb,
     );
 
-    ResultHandler::str_str_str(command_handle, err, receiver)
+    ResultHandler::str_str_str(command_handle, err, receiver).await
 }
 
 fn _issuer_create_and_store_revoc_reg(
@@ -414,15 +411,15 @@ fn _issuer_create_and_store_revoc_reg(
 ///                                   (opaque type that contains data structures internal to Ursa.
 ///                                   It should not be parsed and are likely to change in future versions).
 /// }
-pub fn issuer_create_credential_offer(
+pub async fn issuer_create_credential_offer(
     wallet_handle: WalletHandle,
     cred_def_id: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _issuer_create_credential_offer(command_handle, wallet_handle, cred_def_id, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _issuer_create_credential_offer(
@@ -485,14 +482,14 @@ fn _issuer_create_credential_offer(
 ///     }
 /// * `cred_revoc_id`: local id for revocation info (Can be used for revocation of this credential)
 /// * `revoc_reg_delta_json`: Revocation registry delta json with a newly issued credential
-pub fn issuer_create_credential(
+pub async fn issuer_create_credential(
     wallet_handle: WalletHandle,
     cred_offer_json: &str,
     cred_req_json: &str,
     cred_values_json: &str,
     rev_reg_id: Option<&str>,
     blob_storage_reader_handle: BlobStorageReaderHandle,
-) -> Pin<Box<dyn Future<Item = (String, Option<String>, Option<String>), Error = IndyError>>> {
+) -> Result<(String, Option<String>, Option<String>), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_opt_string_opt_string();
 
     let err = _issuer_create_credential(
@@ -506,7 +503,7 @@ pub fn issuer_create_credential(
         cb,
     );
 
-    ResultHandler::str_optstr_optstr(command_handle, err, receiver)
+    ResultHandler::str_optstr_optstr(command_handle, err, receiver).await
 }
 
 fn _issuer_create_credential(
@@ -554,12 +551,12 @@ fn _issuer_create_credential(
 ///
 /// # Returns
 /// * `revoc_reg_delta_json`: Revocation registry delta json with a revoked credential
-pub fn issuer_revoke_credential(
+pub async fn issuer_revoke_credential(
     wallet_handle: WalletHandle,
     blob_storage_reader_cfg_handle: BlobStorageReaderCfgHandle,
     rev_reg_id: &str,
     cred_revoc_id: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _issuer_revoke_credential(
@@ -571,7 +568,7 @@ pub fn issuer_revoke_credential(
         cb,
     );
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _issuer_revoke_credential(
@@ -606,10 +603,10 @@ fn _issuer_revoke_credential(
 ///
 /// # Returns
 /// * `merged_rev_reg_delta` - Merged revocation registry delta
-pub fn issuer_merge_revocation_registry_deltas(
+pub async fn issuer_merge_revocation_registry_deltas(
     rev_reg_delta_json: &str,
     other_rev_reg_delta_json: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _issuer_merge_revocation_registry_deltas(
@@ -619,7 +616,7 @@ pub fn issuer_merge_revocation_registry_deltas(
         cb,
     );
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _issuer_merge_revocation_registry_deltas(
@@ -650,15 +647,15 @@ fn _issuer_merge_revocation_registry_deltas(
 ///
 /// # Returns
 /// * `out_master_secret_id` - Id of generated master secret
-pub fn prover_create_master_secret(
+pub async fn prover_create_master_secret(
     wallet_handle: WalletHandle,
     master_secret_id: Option<&str>,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _prover_create_master_secret(command_handle, wallet_handle, master_secret_id, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _prover_create_master_secret(
@@ -694,15 +691,15 @@ fn _prover_create_master_secret(
 ///     "rev_reg_id": Optional<string>,
 ///     "cred_rev_id": Optional<string>
 /// }
-pub fn prover_get_credential(
+pub async fn prover_get_credential(
     wallet_handle: WalletHandle,
     cred_id: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _prover_get_credential(command_handle, wallet_handle, cred_id, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _prover_get_credential(
@@ -723,15 +720,15 @@ fn _prover_get_credential(
 /// # Arguments
 /// * `wallet_handle`: wallet handle (created by Wallet::open_wallet).
 /// * `cred_id`: Identifier by which requested credential is stored in the wallet
-pub fn prover_delete_credential(
+pub async fn prover_delete_credential(
     wallet_handle: WalletHandle,
     cred_id: &str,
-) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
+) -> Result<(), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _prover_delete_credential(command_handle, wallet_handle, cred_id, cb);
 
-    ResultHandler::empty(command_handle, err, receiver)
+    ResultHandler::empty(command_handle, err, receiver).await
 }
 
 fn _prover_delete_credential(
@@ -781,13 +778,13 @@ fn _prover_delete_credential(
 ///    }
 /// * `cred_req_metadata_json`: Credential request metadata json for further processing of received form Issuer credential.
 ///     Note: cred_req_metadata_json mustn't be shared with Issuer.
-pub fn prover_create_credential_req(
+pub async fn prover_create_credential_req(
     wallet_handle: WalletHandle,
     prover_did: &str,
     cred_offer_json: &str,
     cred_def_json: &str,
     master_secret_id: &str,
-) -> Pin<Box<dyn Future<Item = (String, String), Error = IndyError>>> {
+) -> Result<(String, String), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_string();
 
     let err = _prover_create_credential_req(
@@ -800,7 +797,7 @@ pub fn prover_create_credential_req(
         cb,
     );
 
-    ResultHandler::str_str(command_handle, err, receiver)
+    ResultHandler::str_str(command_handle, err, receiver).await
 }
 
 fn _prover_create_credential_req(
@@ -858,12 +855,12 @@ fn _prover_create_credential_req(
 /// cred_def_id: credential definition id
 /// tag_attrs_json: JSON array with names of attributes to tag by policy, or null for all
 /// retroactive: boolean, whether to apply policy to existing credentials on credential definition identifier
-pub fn prover_set_credential_attr_tag_policy(
+pub async fn prover_set_credential_attr_tag_policy(
     wallet_handle: WalletHandle,
     cred_def_id: &str,
     tag_attrs_json: Option<&str>,
     retroactive: bool,
-) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
+) -> Result<(), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _prover_set_credential_attr_tag_policy(
@@ -875,7 +872,7 @@ pub fn prover_set_credential_attr_tag_policy(
         cb,
     );
 
-    ResultHandler::empty(command_handle, err, receiver)
+    ResultHandler::empty(command_handle, err, receiver).await
 }
 
 fn _prover_set_credential_attr_tag_policy(
@@ -910,15 +907,15 @@ fn _prover_set_credential_attr_tag_policy(
 /// # Returns
 /// JSON array with all attributes that current policy marks taggable;
 /// null for default policy (tag all credential attributes).
-pub fn prover_get_credential_attr_tag_policy(
+pub async fn prover_get_credential_attr_tag_policy(
     wallet_handle: WalletHandle,
     cred_id: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _prover_get_credential_attr_tag_policy(command_handle, wallet_handle, cred_id, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _prover_get_credential_attr_tag_policy(
@@ -966,14 +963,14 @@ fn _prover_get_credential_attr_tag_policy(
 ///
 /// # Returns
 /// * `out_cred_id` - identifier by which credential is stored in the wallet
-pub fn prover_store_credential(
+pub async fn prover_store_credential(
     wallet_handle: WalletHandle,
     cred_id: Option<&str>,
     cred_req_metadata_json: &str,
     cred_json: &str,
     cred_def_json: &str,
     rev_reg_def_json: Option<&str>,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _prover_store_credential(
@@ -987,7 +984,7 @@ pub fn prover_store_credential(
         cb,
     );
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _prover_store_credential(
@@ -1044,15 +1041,15 @@ fn _prover_store_credential(
 ///     "rev_reg_id": Optional<string>,
 ///     "cred_rev_id": Optional<string>
 /// }]
-pub fn prover_get_credentials(
+pub async fn prover_get_credentials(
     wallet_handle: WalletHandle,
     filter_json: Option<&str>,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _prover_get_credentials(command_handle, wallet_handle, filter_json, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _prover_get_credentials(
@@ -1088,15 +1085,15 @@ fn _prover_get_credentials(
 /// # Returns
 /// * `search_handle`: Search handle that can be used later to fetch records by small batches (with fetch_credentials)
 /// * `total_count`: Total count of records
-pub fn prover_search_credentials(
+pub async fn prover_search_credentials(
     wallet_handle: WalletHandle,
     query_json: Option<&str>,
-) -> Pin<Box<dyn Future<Item = (SearchHandle, usize), Error = IndyError>>> {
+) -> Result<(SearchHandle, usize), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_handle_usize();
 
     let err = _prover_search_credentials(command_handle, wallet_handle, query_json, cb);
 
-    ResultHandler::handle_usize(command_handle, err, receiver)
+    ResultHandler::handle_usize(command_handle, err, receiver).await
 }
 
 fn _prover_search_credentials(
@@ -1133,15 +1130,15 @@ fn _prover_search_credentials(
 ///     "rev_reg_id": Optional<string>,
 ///     "cred_rev_id": Optional<string>
 ///  }]
-pub fn prover_fetch_credentials(
+pub async fn prover_fetch_credentials(
     search_handle: SearchHandle,
     count: usize,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _prover_fetch_credentials(command_handle, search_handle, count, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _prover_fetch_credentials(
@@ -1159,14 +1156,12 @@ fn _prover_fetch_credentials(
 ///
 /// # Arguments
 /// * `search_handle`: Search handle (created by search_credentials)
-pub fn prover_close_credentials_search(
-    search_handle: SearchHandle,
-) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
+pub async fn prover_close_credentials_search(search_handle: SearchHandle) -> Result<(), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _prover_close_credentials_search(command_handle, search_handle, cb);
 
-    ResultHandler::empty(command_handle, err, receiver)
+    ResultHandler::empty(command_handle, err, receiver).await
 }
 
 fn _prover_close_credentials_search(
@@ -1258,10 +1253,10 @@ fn _prover_close_credentials_search(
 ///         "rev_reg_id": Optional<int>,
 ///         "cred_rev_id": Optional<int>,
 ///     }
-pub fn prover_get_credentials_for_proof_req(
+pub async fn prover_get_credentials_for_proof_req(
     wallet_handle: WalletHandle,
     proof_request_json: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _prover_get_credentials_for_proof_req(
@@ -1271,7 +1266,7 @@ pub fn prover_get_credentials_for_proof_req(
         cb,
     );
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _prover_get_credentials_for_proof_req(
@@ -1360,11 +1355,11 @@ fn _prover_get_credentials_for_proof_req(
 ///
 /// # Returns
 /// * `search_handle`: Search handle that can be used later to fetch records by small batches (with fetch_credentials_for_proof_req)
-pub fn prover_search_credentials_for_proof_req(
+pub async fn prover_search_credentials_for_proof_req(
     wallet_handle: WalletHandle,
     proof_request_json: &str,
     extra_query_json: Option<&str>,
-) -> Pin<Box<dyn Future<Item = CommandHandle, Error = IndyError>>> {
+) -> Result<CommandHandle, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_handle();
 
     let err = _prover_search_credentials_for_proof_req(
@@ -1375,7 +1370,7 @@ pub fn prover_search_credentials_for_proof_req(
         cb,
     );
 
-    ResultHandler::handle(command_handle, err, receiver)
+    ResultHandler::handle(command_handle, err, receiver).await
 }
 
 fn _prover_search_credentials_for_proof_req(
@@ -1430,11 +1425,11 @@ fn _prover_search_credentials_for_proof_req(
 ///     }
 /// NOTE: The list of length less than the requested count means that search iterator
 /// correspondent to the requested <item_referent> is completed.
-pub fn prover_fetch_credentials_for_proof_req(
+pub async fn prover_fetch_credentials_for_proof_req(
     search_handle: SearchHandle,
     item_referent: &str,
     count: usize,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _prover_fetch_credentials_for_proof_req(
@@ -1445,7 +1440,7 @@ pub fn prover_fetch_credentials_for_proof_req(
         cb,
     );
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _prover_fetch_credentials_for_proof_req(
@@ -1472,14 +1467,14 @@ fn _prover_fetch_credentials_for_proof_req(
 ///
 /// # Arguments
 /// * `search_handle`: Search handle (created by search_credentials_for_proof_req)
-pub fn prover_close_credentials_search_for_proof_req(
+pub async fn prover_close_credentials_search_for_proof_req(
     search_handle: SearchHandle,
-) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
+) -> Result<(), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _prover_close_credentials_search_for_proof_req(command_handle, search_handle, cb);
 
-    ResultHandler::empty(command_handle, err, receiver)
+    ResultHandler::empty(command_handle, err, receiver).await
 }
 
 fn _prover_close_credentials_search_for_proof_req(
@@ -1628,7 +1623,7 @@ fn _prover_close_credentials_search_for_proof_req(
 ///           It should not be parsed and are likely to change in future versions).
 ///         "identifiers": [{schema_id, cred_def_id, Optional<rev_reg_id>, Optional<timestamp>}]
 ///     }
-pub fn prover_create_proof(
+pub async fn prover_create_proof(
     wallet_handle: WalletHandle,
     proof_req_json: &str,
     requested_credentials_json: &str,
@@ -1636,7 +1631,7 @@ pub fn prover_create_proof(
     schemas_json: &str,
     credential_defs_json: &str,
     rev_states_json: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _prover_create_proof(
@@ -1651,7 +1646,7 @@ pub fn prover_create_proof(
         cb,
     );
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _prover_create_proof(
@@ -1775,14 +1770,14 @@ fn _prover_create_proof(
 ///
 /// # Returns
 /// * `valid`: true - if signature is valid, false - otherwise
-pub fn verifier_verify_proof(
+pub async fn verifier_verify_proof(
     proof_request_json: &str,
     proof_json: &str,
     schemas_json: &str,
     credential_defs_json: &str,
     rev_reg_defs_json: &str,
     rev_regs_json: &str,
-) -> Pin<Box<dyn Future<Item = bool, Error = IndyError>>> {
+) -> Result<bool, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_bool();
 
     let err = _verifier_verify_proof(
@@ -1796,7 +1791,7 @@ pub fn verifier_verify_proof(
         cb,
     );
 
-    ResultHandler::bool(command_handle, err, receiver)
+    ResultHandler::bool(command_handle, err, receiver).await
 }
 
 fn _verifier_verify_proof(
@@ -1854,13 +1849,13 @@ fn _verifier_verify_proof(
 ///                             It should not be parsed and are likely to change in future versions).
 ///     "timestamp" : integer
 /// }
-pub fn create_revocation_state(
+pub async fn create_revocation_state(
     blob_storage_reader_handle: BlobStorageReaderHandle,
     rev_reg_def_json: &str,
     rev_reg_delta_json: &str,
     timestamp: u64,
     cred_rev_id: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _create_revocation_state(
@@ -1873,7 +1868,7 @@ pub fn create_revocation_state(
         cb,
     );
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _create_revocation_state(
@@ -1926,14 +1921,14 @@ fn _create_revocation_state(
 ///                            It should not be parsed and are likely to change in future versions).
 ///     "timestamp" : integer
 /// }
-pub fn update_revocation_state(
+pub async fn update_revocation_state(
     blob_storage_reader_handle: BlobStorageReaderHandle,
     rev_state_json: &str,
     rev_reg_def_json: &str,
     rev_reg_delta_json: &str,
     timestamp: u64,
     cred_rev_id: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _update_revocation_state(
@@ -1947,7 +1942,7 @@ pub fn update_revocation_state(
         cb,
     );
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _update_revocation_state(
@@ -1991,12 +1986,12 @@ fn _update_revocation_state(
 ///
 /// # Returns
 /// * `nonce`: generated number as a string
-pub fn generate_nonce() -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+pub async fn generate_nonce() -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _generate_nonce(command_handle, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _generate_nonce(command_handle: CommandHandle, cb: Option<ResponseStringCB>) -> ErrorCode {
@@ -2025,12 +2020,12 @@ fn _generate_nonce(command_handle: CommandHandle, cb: Option<ResponseStringCB>) 
 ///
 /// # Returns
 /// * `res`: entity either in unqualified form or original if casting isn't possible
-pub fn to_unqualified(entity: &str) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+pub async fn to_unqualified(entity: &str) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _to_unqualified(command_handle, entity, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _to_unqualified(

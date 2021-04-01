@@ -9,8 +9,6 @@ use ffi::pool;
 use ffi::{ResponseEmptyCB, ResponseI32CB, ResponseStringCB};
 
 use crate::{CommandHandle, PoolHandle};
-use futures::Future;
-use std::pin::Pin;
 
 /// Creates a new local pool ledger configuration that can be used later to connect pool nodes.
 ///
@@ -20,15 +18,15 @@ use std::pin::Pin;
 /// {
 ///     "genesis_txn": string (required), A path to genesis transaction file.
 /// }
-pub fn create_pool_ledger_config(
+pub async fn create_pool_ledger_config(
     pool_name: &str,
     pool_config: Option<&str>,
-) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
+) -> Result<(), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _create_pool_ledger_config(command_handle, pool_name, pool_config, cb);
 
-    ResultHandler::empty(command_handle, err, receiver)
+    ResultHandler::empty(command_handle, err, receiver).await
 }
 
 fn _create_pool_ledger_config(
@@ -76,15 +74,15 @@ fn _create_pool_ledger_config(
 ///
 /// # Returns
 /// Handle to opened pool to use in methods that require pool connection.
-pub fn open_pool_ledger(
+pub async fn open_pool_ledger(
     pool_name: &str,
     config: Option<&str>,
-) -> Pin<Box<dyn Future<Item = CommandHandle, Error = IndyError>>> {
+) -> Result<CommandHandle, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_handle();
 
     let err = _open_pool_ledger(command_handle, pool_name, config, cb);
 
-    ResultHandler::handle(command_handle, err, receiver)
+    ResultHandler::handle(command_handle, err, receiver).await
 }
 
 fn _open_pool_ledger(
@@ -110,14 +108,12 @@ fn _open_pool_ledger(
 ///
 /// # Arguments
 /// * `handle` - pool handle returned by open_ledger
-pub fn refresh_pool_ledger(
-    pool_handle: PoolHandle,
-) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
+pub async fn refresh_pool_ledger(pool_handle: PoolHandle) -> Result<(), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _refresh_pool_ledger(command_handle, pool_handle, cb);
 
-    ResultHandler::empty(command_handle, err, receiver)
+    ResultHandler::empty(command_handle, err, receiver).await
 }
 
 fn _refresh_pool_ledger(
@@ -129,12 +125,12 @@ fn _refresh_pool_ledger(
 }
 
 /// Lists names of created pool ledgers
-pub fn list_pools() -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+pub async fn list_pools() -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _list_pools(command_handle, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _list_pools(command_handle: CommandHandle, cb: Option<ResponseStringCB>) -> ErrorCode {
@@ -145,14 +141,12 @@ fn _list_pools(command_handle: CommandHandle, cb: Option<ResponseStringCB>) -> E
 ///
 /// # Arguments
 /// * `handle` - pool handle returned by open_ledger.
-pub fn close_pool_ledger(
-    pool_handle: PoolHandle,
-) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
+pub async fn close_pool_ledger(pool_handle: PoolHandle) -> Result<(), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _close_pool_ledger(command_handle, pool_handle, cb);
 
-    ResultHandler::empty(command_handle, err, receiver)
+    ResultHandler::empty(command_handle, err, receiver).await
 }
 
 fn _close_pool_ledger(
@@ -167,12 +161,12 @@ fn _close_pool_ledger(
 ///
 /// # Arguments
 /// * `config_name` - Name of the pool ledger configuration to delete.
-pub fn delete_pool_ledger(pool_name: &str) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
+pub async fn delete_pool_ledger(pool_name: &str) -> Result<(), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _delete_pool_ledger(command_handle, pool_name, cb);
 
-    ResultHandler::empty(command_handle, err, receiver)
+    ResultHandler::empty(command_handle, err, receiver).await
 }
 
 fn _delete_pool_ledger(
@@ -198,14 +192,12 @@ fn _delete_pool_ledger(
 /// * `protocol_version` - Protocol version will be used:
 ///     1 - for Indy Node 1.3
 ///     2 - for Indy Node 1.4
-pub fn set_protocol_version(
-    protocol_version: usize,
-) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
+pub async fn set_protocol_version(protocol_version: usize) -> Result<(), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _set_protocol_version(command_handle, protocol_version, cb);
 
-    ResultHandler::empty(command_handle, err, receiver)
+    ResultHandler::empty(command_handle, err, receiver).await
 }
 
 fn _set_protocol_version(

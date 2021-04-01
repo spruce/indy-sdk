@@ -9,8 +9,7 @@ use std::collections::HashMap;
 use std::ffi::CStr;
 use std::sync::Mutex;
 
-use futures::sync::oneshot;
-use futures::*;
+use futures::channel::oneshot;
 
 lazy_static! {
     static ref CALLBACKS_EMPTY: Mutex<HashMap<CommandHandle, oneshot::Sender<Result<(), IndyError>>>> =
@@ -49,7 +48,7 @@ lazy_static! {
 
 macro_rules! cb_ec {
     ($name:ident($($cr:ident:$crt:ty),*)->$rrt:ty, $cbs:ident, $res:expr) => (
-    pub fn $name() -> (sync::oneshot::Receiver<Result<$rrt, IndyError>>,
+    pub fn $name() -> (oneshot::Receiver<Result<$rrt, IndyError>>,
                           CommandHandle,
                           Option<extern fn(command_handle: CommandHandle, err: i32, $($crt),*)>) {
         extern fn callback(command_handle: CommandHandle, err: i32, $($cr:$crt),*) {
@@ -132,14 +131,17 @@ macro_rules! result_handler {
         pub async fn $name(
             command_handle: CommandHandle,
             err: ErrorCode,
-            rx: sync::oneshot::Receiver<Result<$res_type, IndyError>>,
+            rx: oneshot::Receiver<Result<$res_type, IndyError>>,
         ) -> Result<$res_type, IndyError> {
             if err != ErrorCode::Success {
                 let mut callbacks = $map.lock().unwrap();
                 callbacks.remove(&command_handle).unwrap();
-                Err(IndyError::new(err)
+                Err(IndyError::new(err))
             } else {
-                Ok(rx.map_err(|_| panic!("channel error!")).wait())
+                match rx.await {
+                    Ok(inner) => inner,
+                    Err(_) => panic!("channel error!"),
+                }
             }
         }
     };
@@ -176,49 +178,55 @@ mod test {
 
     #[test]
     fn cb_ec_slice() {
-        let (receiver, command_handle, cb) = ClosureHandler::cb_ec_slice();
+        futures::executor::block_on(async {
+            let (receiver, command_handle, cb) = ClosureHandler::cb_ec_slice();
 
-        let test_vec: Vec<u8> = vec![250, 251, 252, 253, 254, 255];
-        let callback = cb.unwrap();
-        callback(command_handle, 0, test_vec.as_ptr(), test_vec.len() as u32);
+            let test_vec: Vec<u8> = vec![250, 251, 252, 253, 254, 255];
+            let callback = cb.unwrap();
+            callback(command_handle, 0, test_vec.as_ptr(), test_vec.len() as u32);
 
-        let slice1 = receiver.wait().unwrap().unwrap();
-        assert_eq!(test_vec, slice1);
+            let slice1 = receiver.await.unwrap().unwrap();
+            assert_eq!(test_vec, slice1);
+        })
     }
 
     #[test]
     fn ec_string_opt_string_null() {
-        let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_opt_string();
+        futures::executor::block_on(async {
+            let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_opt_string();
 
-        let callback = cb.unwrap();
-        callback(
-            command_handle,
-            0,
-            CString::new("This is a test").unwrap().as_ptr(),
-            null(),
-        );
+            let callback = cb.unwrap();
+            callback(
+                command_handle,
+                0,
+                CString::new("This is a test").unwrap().as_ptr(),
+                null(),
+            );
 
-        let (str1, str2) = receiver.wait().unwrap().unwrap();
-        assert_eq!(str1, "This is a test".to_string());
-        assert_eq!(str2, None);
+            let (str1, str2) = receiver.await.unwrap().unwrap();
+            assert_eq!(str1, "This is a test".to_string());
+            assert_eq!(str2, None);
+        })
     }
 
     #[test]
     fn ec_string_opt_string_some() {
-        let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_opt_string();
+        futures::executor::block_on(async {
+            let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_opt_string();
 
-        let callback = cb.unwrap();
-        callback(
-            command_handle,
-            0,
-            CString::new("This is a test").unwrap().as_ptr(),
-            CString::new("The second string has something")
-                .unwrap()
-                .as_ptr(),
-        );
+            let callback = cb.unwrap();
+            callback(
+                command_handle,
+                0,
+                CString::new("This is a test").unwrap().as_ptr(),
+                CString::new("The second string has something")
+                    .unwrap()
+                    .as_ptr(),
+            );
 
-        let (str1, str2) = receiver.wait().unwrap().unwrap();
-        assert_eq!(str1, "This is a test".to_string());
-        assert_eq!(str2, Some("The second string has something".to_string()));
+            let (str1, str2) = receiver.await.unwrap().unwrap();
+            assert_eq!(str1, "This is a test".to_string());
+            assert_eq!(str2, Some("The second string has something".to_string()));
+        })
     }
 }

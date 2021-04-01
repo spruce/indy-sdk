@@ -1,9 +1,6 @@
 use crate::{ErrorCode, IndyError};
 
-use futures::Future;
-
 use std::ffi::CString;
-use std::pin::Pin;
 use std::ptr::null;
 
 use crate::utils::callbacks::{ClosureHandler, ResultHandler};
@@ -12,15 +9,15 @@ use crate::{CommandHandle, WalletHandle};
 use ffi::pairwise;
 use ffi::{ResponseBoolCB, ResponseEmptyCB, ResponseStringCB};
 
-pub fn is_pairwise_exists(
+pub async fn is_pairwise_exists(
     wallet_handle: WalletHandle,
     their_did: &str,
-) -> Pin<Box<dyn Future<Item = bool, Error = IndyError>>> {
+) -> Result<bool, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_bool();
 
     let err = _is_pairwise_exists(command_handle, wallet_handle, their_did, cb);
 
-    ResultHandler::bool(command_handle, err, receiver)
+    ResultHandler::bool(command_handle, err, receiver).await
 }
 
 fn _is_pairwise_exists(
@@ -36,12 +33,12 @@ fn _is_pairwise_exists(
     })
 }
 
-pub fn create_pairwise(
+pub async fn create_pairwise(
     wallet_handle: WalletHandle,
     their_did: &str,
     my_did: &str,
     metadata: Option<&str>,
-) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
+) -> Result<(), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _create_pairwise(
@@ -53,7 +50,7 @@ pub fn create_pairwise(
         cb,
     );
 
-    ResultHandler::empty(command_handle, err, receiver)
+    ResultHandler::empty(command_handle, err, receiver).await
 }
 
 fn _create_pairwise(
@@ -80,14 +77,12 @@ fn _create_pairwise(
     })
 }
 
-pub fn list_pairwise(
-    wallet_handle: WalletHandle,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+pub async fn list_pairwise(wallet_handle: WalletHandle) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _list_pairwise(command_handle, wallet_handle, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _list_pairwise(
@@ -98,15 +93,15 @@ fn _list_pairwise(
     ErrorCode::from(unsafe { pairwise::indy_list_pairwise(command_handle, wallet_handle, cb) })
 }
 
-pub fn get_pairwise(
+pub async fn get_pairwise(
     wallet_handle: WalletHandle,
     their_did: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _get_pairwise(command_handle, wallet_handle, their_did, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _get_pairwise(
@@ -122,16 +117,16 @@ fn _get_pairwise(
     })
 }
 
-pub fn set_pairwise_metadata(
+pub async fn set_pairwise_metadata(
     wallet_handle: WalletHandle,
     their_did: &str,
     metadata: Option<&str>,
-) -> Pin<Box<dyn Future<Item = (), Error = IndyError>>> {
+) -> Result<(), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec();
 
     let err = _set_pairwise_metadata(command_handle, wallet_handle, their_did, metadata, cb);
 
-    ResultHandler::empty(command_handle, err, receiver)
+    ResultHandler::empty(command_handle, err, receiver).await
 }
 
 fn _set_pairwise_metadata(

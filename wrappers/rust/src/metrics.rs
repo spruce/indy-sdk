@@ -1,9 +1,6 @@
-use futures::Future;
-
 use crate::{ErrorCode, IndyError};
 
 use ffi::metrics;
-use std::pin::Pin;
 
 use crate::utils::callbacks::{ClosureHandler, ResultHandler};
 
@@ -14,12 +11,12 @@ use ffi::ResponseStringCB;
 ///
 /// # Returns
 /// String with a dictionary of metrics in JSON format. Where keys are names of metrics.
-pub fn collect_metrics() -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+pub async fn collect_metrics() -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _collect_metrics(command_handle, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _collect_metrics(command_handle: CommandHandle, cb: Option<ResponseStringCB>) -> ErrorCode {

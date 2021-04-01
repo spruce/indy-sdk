@@ -3,9 +3,6 @@ use crate::{ErrorCode, IndyError};
 use std::ffi::CString;
 use std::ptr::null;
 
-use futures::Future;
-use std::pin::Pin;
-
 use ffi::payments;
 use ffi::{
     CommandHandle, ResponseBoolCB, ResponseSliceCB, ResponseStringCB, ResponseStringI64CB,
@@ -13,7 +10,6 @@ use ffi::{
 };
 
 use crate::utils::callbacks::{ClosureHandler, ResultHandler};
-use futures::IntoFuture;
 
 /// Create the payment address for specified payment method
 ///
@@ -37,16 +33,16 @@ use futures::IntoFuture;
 ///
 /// # Returns
 /// * `payment_address` - public identifier of payment address in fully resolvable payment address format
-pub fn create_payment_address(
+pub async fn create_payment_address(
     wallet_handle: WalletHandle,
     payment_method: &str,
     config: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _create_payment_address(command_handle, wallet_handle, payment_method, config, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _create_payment_address(
@@ -77,14 +73,12 @@ fn _create_payment_address(
 ///
 /// # Returns
 /// * `payment_addresses_json` - json array of string with json addresses
-pub fn list_payment_addresses(
-    wallet_handle: WalletHandle,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+pub async fn list_payment_addresses(wallet_handle: WalletHandle) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _list_payment_addresses(command_handle, wallet_handle, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _list_payment_addresses(
@@ -132,14 +126,14 @@ fn _list_payment_addresses(
 /// # Returns
 /// * `req_with_fees_json` - modified Indy request with added fees info
 /// * `payment_method`
-pub fn add_request_fees(
+pub async fn add_request_fees(
     wallet_handle: WalletHandle,
     submitter_did: Option<&str>,
     req_json: &str,
     inputs_json: &str,
     outputs_json: &str,
     extra: Option<&str>,
-) -> Pin<Box<dyn Future<Item = (String, String), Error = IndyError>>> {
+) -> Result<(String, String), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_string();
 
     let err = _add_request_fees(
@@ -153,7 +147,7 @@ pub fn add_request_fees(
         cb,
     );
 
-    ResultHandler::str_str(command_handle, err, receiver)
+    ResultHandler::str_str(command_handle, err, receiver).await
 }
 
 fn _add_request_fees(
@@ -203,15 +197,15 @@ fn _add_request_fees(
 ///      amount: <int>, // amount of tokens in this input
 ///      extra: <str>, // optional data from payment transaction
 ///   }]
-pub fn parse_response_with_fees(
+pub async fn parse_response_with_fees(
     payment_method: &str,
     resp_json: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _parse_response_with_fees(command_handle, payment_method, resp_json, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _parse_response_with_fees(
@@ -249,11 +243,11 @@ fn _parse_response_with_fees(
     since = "2.0.0",
     note = "please use `parse_get_payment_sources_with_from_response` instead"
 )]
-pub fn build_get_payment_sources_request(
+pub async fn build_get_payment_sources_request(
     wallet_handle: WalletHandle,
     submitter_did: Option<&str>,
     payment_address: &str,
-) -> Pin<Box<dyn Future<Item = (String, String), Error = IndyError>>> {
+) -> Result<(String, String), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_string();
 
     let err = _build_get_payment_sources_request(
@@ -264,7 +258,7 @@ pub fn build_get_payment_sources_request(
         cb,
     );
 
-    ResultHandler::str_str(command_handle, err, receiver)
+    ResultHandler::str_str(command_handle, err, receiver).await
 }
 
 fn _build_get_payment_sources_request(
@@ -300,12 +294,12 @@ fn _build_get_payment_sources_request(
 /// # Returns
 /// * `get_utxo_txn_json` - Indy request for getting UTXO list for payment address
 /// * `payment_method`
-pub fn build_get_payment_sources_with_from_request(
+pub async fn build_get_payment_sources_with_from_request(
     wallet_handle: WalletHandle,
     submitter_did: Option<&str>,
     payment_address: &str,
     from: Option<i64>,
-) -> Pin<Box<dyn Future<Item = (String, String), Error = IndyError>>> {
+) -> Result<(String, String), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_string();
 
     let err = _build_get_payment_sources_with_from_request(
@@ -317,7 +311,7 @@ pub fn build_get_payment_sources_with_from_request(
         cb,
     );
 
-    ResultHandler::str_str(command_handle, err, receiver)
+    ResultHandler::str_str(command_handle, err, receiver).await
 }
 
 fn _build_get_payment_sources_with_from_request(
@@ -363,15 +357,15 @@ fn _build_get_payment_sources_with_from_request(
     since = "2.0.0",
     note = "please use `parse_get_payment_sources_with_from_response` instead"
 )]
-pub fn parse_get_payment_sources_response(
+pub async fn parse_get_payment_sources_response(
     payment_method: &str,
     resp_json: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _parse_get_payment_sources_response(command_handle, payment_method, resp_json, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _parse_get_payment_sources_response(
@@ -412,7 +406,7 @@ fn _parse_get_payment_sources_response(
 pub async fn parse_get_payment_sources_with_from_response(
     payment_method: &str,
     resp_json: &str,
-) -> Pin<Box<dyn Future<Item = (String, Option<i64>), Error = IndyError>>> {
+) -> Result<(String, Option<i64>), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_i64();
 
     let err = _parse_get_payment_sources_with_from_response(
@@ -422,12 +416,9 @@ pub async fn parse_get_payment_sources_with_from_response(
         cb,
     );
 
-    // Box::pin(
-    //TODO
     ResultHandler::str_i64(command_handle, err, receiver)
-    // .map(|(s, i)| (s, if i >= 0 { Some(i) } else { None }))
-    // .into_future(),
-    // )
+        .await
+        .map(|(s, i)| (s, if i >= 0 { Some(i) } else { None }))
 }
 
 fn _parse_get_payment_sources_with_from_response(
@@ -473,13 +464,13 @@ fn _parse_get_payment_sources_with_from_response(
 /// # Returns
 /// * `payment_req_json` - Indy request for doing tokens payment
 /// * `payment_method`
-pub fn build_payment_req(
+pub async fn build_payment_req(
     wallet_handle: WalletHandle,
     submitter_did: Option<&str>,
     inputs: &str,
     outputs: &str,
     extra: Option<&str>,
-) -> Pin<Box<dyn Future<Item = (String, String), Error = IndyError>>> {
+) -> Result<(String, String), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_string();
 
     let err = _build_payment_req(
@@ -492,7 +483,7 @@ pub fn build_payment_req(
         cb,
     );
 
-    ResultHandler::str_str(command_handle, err, receiver)
+    ResultHandler::str_str(command_handle, err, receiver).await
 }
 
 fn _build_payment_req(
@@ -537,15 +528,15 @@ fn _build_payment_req(
 ///      amount: <int>, // amount of tokens in this input
 ///      extra: <str>, // optional data from payment transaction
 ///   }]
-pub fn parse_payment_response(
+pub async fn parse_payment_response(
     payment_method: &str,
     resp_json: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _parse_payment_response(command_handle, payment_method, resp_json, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _parse_payment_response(
@@ -585,14 +576,14 @@ fn _parse_payment_response(
 ///
 /// # Returns
 /// Updated extra result as json.
-pub fn prepare_extra_with_acceptance_data(
+pub async fn prepare_extra_with_acceptance_data(
     extra_json: Option<&str>,
     text: Option<&str>,
     version: Option<&str>,
     taa_digest: Option<&str>,
     mechanism: &str,
     time: u64,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _prepare_extra_with_acceptance_data(
@@ -606,7 +597,7 @@ pub fn prepare_extra_with_acceptance_data(
         cb,
     );
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _prepare_extra_with_acceptance_data(
@@ -655,12 +646,12 @@ fn _prepare_extra_with_acceptance_data(
 /// # Returns
 /// * `mint_req_json`  - Indy request for doing tokens minting
 /// * `payment_method`
-pub fn build_mint_req(
+pub async fn build_mint_req(
     wallet_handle: WalletHandle,
     submitter_did: Option<&str>,
     outputs_json: &str,
     extra: Option<&str>,
-) -> Pin<Box<dyn Future<Item = (String, String), Error = IndyError>>> {
+) -> Result<(String, String), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_string();
 
     let err = _build_mint_req(
@@ -672,7 +663,7 @@ pub fn build_mint_req(
         cb,
     );
 
-    ResultHandler::str_str(command_handle, err, receiver)
+    ResultHandler::str_str(command_handle, err, receiver).await
 }
 
 fn _build_mint_req(
@@ -714,12 +705,12 @@ fn _build_mint_req(
 ///
 /// # Returns
 /// * `set_txn_fees_json`  - Indy request for setting fees for transactions in the ledger
-pub fn build_set_txn_fees_req(
+pub async fn build_set_txn_fees_req(
     wallet_handle: WalletHandle,
     submitter_did: Option<&str>,
     payment_method: &str,
     fees_json: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _build_set_txn_fees_req(
@@ -731,7 +722,7 @@ pub fn build_set_txn_fees_req(
         cb,
     );
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _build_set_txn_fees_req(
@@ -768,11 +759,11 @@ fn _build_set_txn_fees_req(
 ///
 /// # Returns
 /// * `get_txn_fees_json` - Indy request for getting fees for transactions in the ledger
-pub fn build_get_txn_fees_req(
+pub async fn build_get_txn_fees_req(
     wallet_handle: WalletHandle,
     submitter_did: Option<&str>,
     payment_method: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _build_get_txn_fees_req(
@@ -783,7 +774,7 @@ pub fn build_get_txn_fees_req(
         cb,
     );
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _build_get_txn_fees_req(
@@ -821,15 +812,15 @@ fn _build_get_txn_fees_req(
 ///   .................
 ///   txnTypeN: amountN,
 /// }
-pub fn parse_get_txn_fees_response(
+pub async fn parse_get_txn_fees_response(
     payment_method: &str,
     resp_json: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _parse_get_txn_fees_response(command_handle, payment_method, resp_json, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _parse_get_txn_fees_response(
@@ -851,16 +842,16 @@ fn _parse_get_txn_fees_response(
     })
 }
 
-pub fn build_verify_payment_req(
+pub async fn build_verify_payment_req(
     wallet_handle: WalletHandle,
     submitter_did: Option<&str>,
     receipt: &str,
-) -> Pin<Box<dyn Future<Item = (String, String), Error = IndyError>>> {
+) -> Result<(String, String), IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string_string();
 
     let err = _build_verify_req(command_handle, wallet_handle, submitter_did, receipt, cb);
 
-    ResultHandler::str_str(command_handle, err, receiver)
+    ResultHandler::str_str(command_handle, err, receiver).await
 }
 
 fn _build_verify_req(
@@ -884,15 +875,15 @@ fn _build_verify_req(
     })
 }
 
-pub fn parse_verify_payment_response(
+pub async fn parse_verify_payment_response(
     payment_method: &str,
     resp_json: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _parse_verify_response(command_handle, payment_method, resp_json, cb);
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _parse_verify_response(
@@ -943,11 +934,11 @@ fn _parse_verify_response(
 ///     }]
 /// }
 ///
-pub fn get_request_info(
+pub async fn get_request_info(
     get_auth_rule_resp_json: &str,
     requester_info_json: &str,
     fees_json: &str,
-) -> Pin<Box<dyn Future<Item = String, Error = IndyError>>> {
+) -> Result<String, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_string();
 
     let err = _get_request_info(
@@ -958,7 +949,7 @@ pub fn get_request_info(
         cb,
     );
 
-    ResultHandler::str(command_handle, err, receiver)
+    ResultHandler::str(command_handle, err, receiver).await
 }
 
 fn _get_request_info(
@@ -983,16 +974,16 @@ fn _get_request_info(
     })
 }
 
-pub fn sign_with_address(
+pub async fn sign_with_address(
     wallet_handle: WalletHandle,
     address: &str,
     message: &[u8],
-) -> Pin<Box<dyn Future<Item = Vec<u8>, Error = IndyError>>> {
+) -> Result<Vec<u8>, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_slice();
 
     let err = _sign_with_address(command_handle, wallet_handle, address, message, cb);
 
-    ResultHandler::slice(command_handle, err, receiver)
+    ResultHandler::slice(command_handle, err, receiver).await
 }
 
 fn _sign_with_address(
@@ -1015,16 +1006,16 @@ fn _sign_with_address(
     })
 }
 
-pub fn verify_with_address(
+pub async fn verify_with_address(
     address: &str,
     message: &[u8],
     signature: &[u8],
-) -> Pin<Box<dyn Future<Item = bool, Error = IndyError>>> {
+) -> Result<bool, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_bool();
 
     let err = _verify_with_address(command_handle, address, message, signature, cb);
 
-    ResultHandler::bool(command_handle, err, receiver)
+    ResultHandler::bool(command_handle, err, receiver).await
 }
 
 fn _verify_with_address(

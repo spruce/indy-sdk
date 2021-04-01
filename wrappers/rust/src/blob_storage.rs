@@ -1,25 +1,19 @@
-use futures::Future;
-
 use crate::{ErrorCode, IndyError};
 
 use std::ffi::CString;
 
 use ffi::blob_storage;
 use ffi::ResponseI32CB;
-use std::pin::Pin;
 
 use crate::utils::callbacks::{ClosureHandler, ResultHandler};
 use crate::{CommandHandle, IndyHandle};
 
-pub fn open_reader(
-    xtype: &str,
-    config_json: &str,
-) -> Pin<Box<dyn Future<Item = IndyHandle, Error = IndyError>>> {
+pub async fn open_reader(xtype: &str, config_json: &str) -> Result<IndyHandle, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_handle();
 
     let err = _open_reader(command_handle, xtype, config_json, cb);
 
-    ResultHandler::handle(command_handle, err, receiver)
+    ResultHandler::handle(command_handle, err, receiver).await
 }
 
 fn _open_reader(
@@ -41,15 +35,12 @@ fn _open_reader(
     })
 }
 
-pub fn open_writer(
-    xtype: &str,
-    config_json: &str,
-) -> Pin<Box<dyn Future<Item = CommandHandle, Error = IndyError>>> {
+pub async fn open_writer(xtype: &str, config_json: &str) -> Result<CommandHandle, IndyError> {
     let (receiver, command_handle, cb) = ClosureHandler::cb_ec_handle();
 
     let err = _open_writer(command_handle, xtype, config_json, cb);
 
-    ResultHandler::handle(command_handle, err, receiver)
+    ResultHandler::handle(command_handle, err, receiver).await
 }
 
 fn _open_writer(
